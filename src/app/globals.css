@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-montserrat), system-ui, sans-serif;
+}
+
+/* Тёмная тема из шаблона убрана: у сайта фиксированный светлый вид,
+   как в прототипе. Иначе половина цветов начинает жить своей жизнью. */
+
+body {
+  background: #000;
+  color: #171717;
+}
+
+/* Появление карточек лесенкой — эффект из старого top.html */
+@keyframes cardAppear {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-card-entry {
+  animation: cardAppear 0.45s cubic-bezier(0.215, 0.61, 0.355, 1) both;
+}
+
+.card-hover {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+}
+.card-hover:hover {
+  transform: scale(1.015);
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.15);
+}
+
+/* Уважаем настройку «уменьшить движение» в системе пользователя */
+@media (prefers-reduced-motion: reduce) {
+  .animate-card-entry { animation: none; }
+  .card-hover:hover { transform: none; }
+}
