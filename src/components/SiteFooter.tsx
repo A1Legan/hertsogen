@@ -1,11 +1,19 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 export function SiteFooter() {
     return (
         <footer className="mt-0 border-t-2 border-black bg-[#1a1a1a] py-12 text-white">
             <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-8 px-6 md:flex-row">
-                <Link href="/" className="text-2xl font-black tracking-tight">
-                    H<span className="text-orange-600">&amp;</span>CR
+                <Link href="/" className="opacity-60 transition-opacity hover:opacity-100">
+                    <Image
+                        src="/logo.png"
+                        alt="H&CR"
+                        width={160}
+                        height={64}
+                        style={{ width: 'auto', height: '3rem' }}
+                        className="sm:!h-16"
+                    />
                 </Link>
 
                 <div className="flex flex-wrap justify-center gap-6">

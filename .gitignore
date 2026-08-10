@@ -44,3 +44,5 @@ next-env.d.ts
 # из src/server). В репозитории им не место.
 sample-*.json
 country-map.json
+
+/src/generated/prisma

@@ -1,59 +1,40 @@
+import { prisma } from './prisma';
+
 /**
- * Стримы и прогрессы.
- *
- * ЗАГЛУШКА, как и news.ts. Меняется только тело getStreams().
- *
- * Важное отличие от уровней и игроков: это единственные по-настоящему
- * живые данные на сайте. Статус LIVE/OFFLINE меняется в течение дня,
- * поэтому когда появится настоящий источник, страницу стримов, скорее
- * всего, придётся обновлять чаще остальных (см. revalidate на странице).
+ * Стримы и прогрессы. Тоже переехали из массива в базу,
+ * тип Stream и страницы остались прежними.
  */
 
 export type Stream = {
     id: string;
     playerName: string;
+    /** Название страны в формате Global Demonlist: 'United-States', 'Unknown' */
     playerCountry: string;
     levelName: string;
-    /** Процент прохождения, 0-100 */
+    /** Процент прохождения, 0–100 */
     progress: number;
     isLive: boolean;
     url: string;
 };
 
-const ЗАГЛУШКА: Stream[] = [
-    {
-        id: '1',
-        playerName: 'Zoink',
-        playerCountry: 'United-States',
-        levelName: 'Society',
-        progress: 64,
-        isLive: true,
-        url: 'https://www.twitch.tv/',
-    },
-    {
-        id: '2',
-        playerName: 'wPopoff',
-        playerCountry: 'United-States',
-        levelName: 'Thinking Space II',
-        progress: 41,
-        isLive: false,
-        url: 'https://www.twitch.tv/',
-    },
-    {
-        id: '3',
-        playerName: 'iMist',
-        playerCountry: 'Unknown',
-        levelName: 'Amethyst',
-        progress: 88,
-        isLive: false,
-        url: 'https://www.twitch.tv/',
-    },
-];
-
-/** Стримы: сначала те, кто в эфире, потом по убыванию прогресса. */
+/**
+ * Сначала те, кто в эфире, потом по ручному порядку, потом по проценту.
+ *
+ * Сортировку делает база, а не JavaScript: ей это дешевле, и заодно
+ * не приходится тащить в приложение записи, которые всё равно уйдут вниз.
+ */
 export async function getStreams(): Promise<Stream[]> {
-    return [...ЗАГЛУШКА].sort((a, b) => {
-        if (a.isLive !== b.isLive) return a.isLive ? -1 : 1;
-        return b.progress - a.progress;
+    const записи = await prisma.stream.findMany({
+        orderBy: [{ isLive: 'desc' }, { sortOrder: 'asc' }, { progress: 'desc' }],
     });
+
+    return записи.map((s) => ({
+        id: s.id,
+        playerName: s.playerName,
+        playerCountry: s.playerCountry,
+        levelName: s.levelName,
+        progress: s.progress,
+        isLive: s.isLive,
+        url: s.url,
+    }));
 }

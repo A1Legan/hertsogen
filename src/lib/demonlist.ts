@@ -62,7 +62,8 @@ export type Level = {
     builder: string;
     verifier: { id: number; name: string };
     videoUrl: string | null;
-    thumbnail: string;
+    /** null = видео нет, превью взять неоткуда. Рисуем нейтральный блок. */
+    thumbnail: string | null;
 };
 
 // У некоторых уровней в Global траблы с ссылками. (Для примера щас существует
@@ -71,7 +72,10 @@ export type Level = {
 // то можно смело пойти нахуй просто) Поэтому из JSON файлика уровней мы будем брать
 // только айдишник видео и поставлять к собственной ссылке
 
-const DEFAULT_THUMBNAIL = '/images/default.jpg';
+// Заглушки для превью уровня нет намеренно: у уровней своей картинки
+// не существует в принципе, превью — это кадр из видео. Нет видео —
+// нет и превью, рисуем серый блок. (default.jpg в старом репозитории —
+// это заглушка для АВАТАРОК игроков, к уровням отношения не имеет.)
 
 export function youtubeId(raw: string): string | null {
     const s = String(raw).trim();
@@ -106,7 +110,7 @@ function toLevel(raw: z.infer<typeof RawLevel>): Level {
         videoUrl: videoId ? `https://www.youtube.com/watch?v=${videoId}` : null,
         thumbnail: videoId
         ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
-        : DEFAULT_THUMBNAIL,
+        : null,
     };
 }
 
@@ -235,4 +239,124 @@ export async function getPlayers(limit = 1000): Promise<Map<number, Player>> {
 export async function getTopPlayers(count = 100): Promise<Player[]> {
     const players = await getPlayers(Math.max(count, PAGE_SIZE));
     return [...players.values()].sort((a, b) => a.rank - b.rank).slice(0, count);
+}
+
+/* ------------------------------------------------------------------ *
+ * ПРОФИЛЬ ИГРОКА  —  /user/get?id=
+ *
+ * Отдаёт пройденные уровни, разбитые по разделам списка.
+ *
+ * ВНИМАНИЕ: схема ниже нарочно мягкая. Схему уровней мы писали по отчёту
+ * inspect.ts, прогнав все 1808 записей, и поэтому там всё обязательное.
+ * А этот ответ я видел ровно один раз, у одного игрока. Значит про поля
+ * ничего не известно: у новичка без прохождений разделов может не быть
+ * вовсе, hardest может отсутствовать, uncompleted приходит null.
+ *
+ * Строгость схемы должна соответствовать тому, сколько данных ты проверил.
+ * Когда прогонишь inspect.ts по сотне игроков — можно будет ужесточить.
+ * ------------------------------------------------------------------ */
+
+const RawRecord = z.object({
+    id: z.number(),
+    name: z.string(),
+    placement: z.number(),
+    video_url: z.string().nullish(),
+});
+
+const РазделСписка = z.array(RawRecord).nullish();
+
+const RawProfile = z.object({
+    username: z.string(),
+    placement: z.number().nullish(),
+    points: z.coerce.number().catch(0),
+    country: z.string().catch('Unknown'),
+    badge: z.string().nullish(),
+    is_banned: z.boolean().nullish(),
+    levels: z
+        .object({
+            hardest: RawRecord.nullish(),
+            main: РазделСписка,
+            extended: РазделСписка,
+            advanced: РазделСписка,
+            unbounded: РазделСписка,
+            progress: РазделСписка,
+            verified: РазделСписка,
+        })
+        .nullish(),
+});
+
+const ProfileResponse = z.object({
+    message: z.string(),
+    data: RawProfile,
+});
+
+export type PlayerRecord = {
+    levelId: number;
+    levelName: string;
+    position: number;
+    videoUrl: string | null;
+};
+
+export type PlayerProfile = {
+    id: number;
+    name: string;
+    rank: number | null;
+    points: number;
+    country: string;
+    isBanned: boolean;
+    /** Самый сложный пройденный уровень */
+    hardest: PlayerRecord | null;
+    /** Пройденные, по разделам списка */
+    main: PlayerRecord[];
+    extended: PlayerRecord[];
+    advanced: PlayerRecord[];
+    unbounded: PlayerRecord[];
+    /** Незавершённые прогрессы */
+    progress: PlayerRecord[];
+    verified: PlayerRecord[];
+};
+
+function toRecord(raw: z.infer<typeof RawRecord>): PlayerRecord {
+    const videoId = raw.video_url ? youtubeId(raw.video_url) : null;
+
+    return {
+        levelId: raw.id,
+        levelName: raw.name,
+        position: raw.placement,
+        videoUrl: videoId ? `https://www.youtube.com/watch?v=${videoId}` : null,
+    };
+}
+
+/** Профиль игрока со всеми его прохождениями. null, если игрока нет. */
+export async function getPlayerProfile(id: number): Promise<PlayerProfile | null> {
+    let json: unknown;
+
+    try {
+        json = await request(`/user/get?id=${id}`);
+    } catch {
+        return null;
+    }
+
+    const parsed = ProfileResponse.safeParse(json);
+    if (!parsed.success) return null;
+
+    const d = parsed.data.data;
+    const l = d.levels ?? {};
+    const раздел = (x: z.infer<typeof РазделСписка>) => (x ?? []).map(toRecord);
+
+    return {
+        id,
+        name: d.username,
+        rank: d.placement ?? null,
+        points: d.points,
+        country: d.country,
+        isBanned: d.is_banned ?? false,
+        hardest: l.hardest ? toRecord(l.hardest) : null,
+        main: раздел(l.main),
+        extended: раздел(l.extended),
+        advanced: раздел(l.advanced),
+        unbounded: раздел(l.unbounded),
+        progress: раздел(l.progress),
+        verified: раздел(l.verified),
+    };
 }

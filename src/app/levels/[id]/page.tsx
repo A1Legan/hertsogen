@@ -73,14 +73,20 @@ export default async function LevelPage({
             </div>
 
             <div className="p-4 sm:p-6">
-                <Image
-                    src={level.thumbnail}
-                    alt=""
-                    width={1280}
-                    height={720}
-                    className="mb-6 w-full rounded border border-gray-200 bg-gray-100 object-cover"
-                    priority
-                />
+                {level.thumbnail ? (
+                    <Image
+                        src={level.thumbnail}
+                        alt=""
+                        width={1280}
+                        height={720}
+                        className="mb-6 w-full rounded border border-gray-200 bg-gray-100 object-cover"
+                        priority
+                    />
+                ) : (
+                    <div className="mb-6 flex aspect-video w-full items-center justify-center rounded border border-dashed border-gray-300 bg-gray-100 text-sm font-bold uppercase text-gray-400">
+                        Видео прохождения недоступно
+                    </div>
+                )}
 
                 <dl className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
                     <StatBox

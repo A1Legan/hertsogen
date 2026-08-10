@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import { getNews } from '@/src/lib/news';
 import { Shell, PageHeading } from '@/src/components/Shell';
 
@@ -23,8 +24,17 @@ export default async function NewsPage() {
                         key={n.id}
                         id={`news-${n.id}`}
                         style={{ animationDelay: `${Math.min(index, 20) * 35}ms` }}
-                        className="animate-card-entry mb-6 border border-gray-200 bg-white shadow-sm"
+                        className="animate-card-entry mb-6 overflow-hidden border border-gray-200 bg-white shadow-sm"
                     >
+                        {n.image && (
+                            <Image
+                                src={n.image}
+                                alt=""
+                                width={800}
+                                height={400}
+                                className="h-48 w-full border-b border-gray-200 object-cover sm:h-64"
+                            />
+                        )}
                         <div className="p-5">
                             <div className="mb-1 text-xs font-bold uppercase tracking-wide text-orange-600">
                                 {n.category} • {n.date}

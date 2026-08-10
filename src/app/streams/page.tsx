@@ -21,6 +21,21 @@ export default async function StreamsPage() {
                 subtitle="Процент — это лучший результат, которого игрок добился на уровне."
             />
 
+            {/* Форма подачи рекорда — она же была в оригинале */}
+            <div className="border-b border-gray-200 bg-orange-50 px-4 py-4 sm:px-6">
+                <p className="mb-2 text-sm text-gray-700">
+                    Прошли уровень или показали хороший процент? Расскажите — добавим в список.
+                </p>
+                <a
+                    href="https://forms.gle/B5jnG9PjSwrmXPjA8"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block rounded bg-orange-600 px-5 py-2.5 text-sm font-bold uppercase text-white transition-colors hover:bg-orange-700"
+                >
+                    Внести свой рекорд
+                </a>
+            </div>
+
             <div className="p-4 sm:p-6">
                 {streams.map((s, index) => (
                     <a

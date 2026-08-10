@@ -1,0 +1,89 @@
+// Схема базы данных H&CR.
+//
+// Читается почти как наши Zod-схемы: объявляем поля и типы. Разница в том,
+// что Zod проверяет данные на лету, а это описание превращается в настоящие
+// таблицы Postgres командой `prisma migrate dev`.
+//
+// Здесь ТОЛЬКО то, что мы храним сами. Уровни и игроки приходят из Global
+// Demonlist и в базе не дублируются — иначе копии разъедутся с оригиналом.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Новости сайта. Заменяет массив-заглушку в src/lib/news.ts
+model News {
+  // UUIDv7: начинается с метки времени, поэтому новые записи ложатся
+  // в конец индекса, а не втыкаются в середину, как это делает UUIDv4.
+  id       String   @id @default(uuid(7))
+  title    String
+  category String   @default("Новость")
+  /// Дата, которая показывается посетителю. Может отличаться от createdAt:
+  /// новость можно написать заранее и поставить нужную дату.
+  date     DateTime @default(now())
+  text     String
+  /// Путь к картинке, например /news1.png. Пусто — новость без картинки.
+  image    String?
+
+  /// Черновики не показываются на сайте. Позволяет писать заранее.
+  published Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Индекс под главный запрос сайта: «опубликованные, свежие сверху»
+  @@index([published, date])
+}
+
+/// Стримы и прогрессы. Заменяет заглушку в src/lib/streams.ts
+model Stream {
+  id            String  @id @default(uuid(7))
+  playerName    String
+  /// Название страны как в Global Demonlist: 'United-States', 'Unknown'.
+  /// Тот же формат, что у игроков, — чтобы работал общий countryCode().
+  playerCountry String  @default("Unknown")
+  levelName     String
+  /// Процент прохождения, 0–100
+  progress      Int     @default(0)
+  isLive        Boolean @default(false)
+  url           String
+
+  /// Ручной порядок: позволяет закрепить важный стрим сверху
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isLive, sortOrder])
+}
+
+/// Собственный рейтинг H&CR — вторая вкладка на странице уровней.
+///
+/// Храним только id уровня и свою позицию. Название, автора, превью и видео
+/// возьмём из API по этому id. Дублировать их тут нельзя: уровень могут
+/// переименовать, и у нас останется устаревшая копия.
+model CommunityRank {
+  /// id уровня в Global Demonlist. Он же первичный ключ:
+  /// один уровень не может стоять в списке дважды.
+  levelId Int @id
+
+  /// Наша позиция в списке. Не уникальная нарочно — иначе при перестановке
+  /// двух уровней местами база ругнётся посреди операции.
+  position Int
+
+  /// Требуемый процент прохождения по нашей версии
+  requirement Int @default(100)
+
+  /// Комментарий редакции: почему уровень стоит именно здесь
+  note String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([position])
+}
