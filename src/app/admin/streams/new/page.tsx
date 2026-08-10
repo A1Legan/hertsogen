@@ -4,30 +4,30 @@ import { ArrowLeft } from 'lucide-react';
 import { Card, CardContent } from '@/src/components/ui/card';
 import { buttonVariants } from '@/src/components/ui/button';
 import { cn } from '@/src/lib/utils';
-import { NewsForm } from '@/src/components/admin/NewsForm';
-import { создатьНовость } from '../actions';
+import { StreamForm } from '@/src/components/admin/StreamForm';
+import { создатьСтрим } from '../actions';
 
-export const metadata: Metadata = { title: 'Новая новость', robots: { index: false } };
+export const metadata: Metadata = { title: 'Новый стрим', robots: { index: false } };
 
-export default function NewNewsPage() {
+export default function NewStreamPage() {
     return (
         <div className="mx-auto max-w-2xl">
             <Link
-                href="/admin/news"
+                href="/admin/streams"
                 className={cn(
                     buttonVariants({ variant: 'ghost', size: 'sm' }),
                     'mb-3 -ml-2 text-muted-foreground',
                 )}
             >
                 <ArrowLeft className="size-4" />
-                Новости
+                Стримы
             </Link>
 
-            <h1 className="mb-6 text-2xl font-bold tracking-tight">Новая новость</h1>
+            <h1 className="mb-6 text-2xl font-bold tracking-tight">Новый стрим</h1>
 
             <Card>
                 <CardContent>
-                    <NewsForm action={создатьНовость} />
+                    <StreamForm action={создатьСтрим} />
                 </CardContent>
             </Card>
         </div>

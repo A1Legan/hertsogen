@@ -1,4 +1,9 @@
 import Link from 'next/link';
+import { Input } from '@/src/components/ui/input';
+import { Textarea } from '@/src/components/ui/textarea';
+import { Label } from '@/src/components/ui/label';
+import { Switch } from '@/src/components/ui/switch';
+import { Button, buttonVariants } from '@/src/components/ui/button';
 
 /**
  * Что показать в полях. Свой тип, а не NewsItem с сайта: там нет поля
@@ -15,14 +20,14 @@ export type ЗначенияНовости = {
 };
 
 /**
- * Форма новости — одна на создание и на редактирование.
+ * Форма новости — одна на создание и на правку.
  *
  * Отличаются они только тем, что подставлено в поля и куда уходит отправка.
- * Держать две почти одинаковые формы — верный способ поправить одну и забыть
- * про вторую.
+ * Две почти одинаковые формы — верный способ поправить одну и забыть вторую.
  *
- * Клиентского JavaScript тут нет вовсе: обычная HTML-форма, обработчик на
- * сервере. Работает даже при отключённых скриптах.
+ * Несмотря на shadcn, это по-прежнему обычная HTML-форма с серверным
+ * действием: компоненты дают внешний вид, а не механику. Клиентского
+ * JavaScript тут нет, кроме самого переключателя.
  */
 export function NewsForm({
     action,
@@ -32,109 +37,95 @@ export function NewsForm({
     новость?: ЗначенияНовости;
 }) {
     return (
-        <form action={action} className="space-y-4">
-            <Поле label="Заголовок">
-                <input
+        <form action={action} className="space-y-5">
+            <div className="space-y-2">
+                <Label htmlFor="title">Заголовок</Label>
+                <Input
+                    id="title"
                     name="title"
                     required
                     maxLength={200}
                     defaultValue={новость?.title ?? ''}
-                    className="w-full border border-gray-300 px-3 py-2 focus:border-orange-500 focus:outline-none"
+                    placeholder="Society занимает первое место списка"
                 />
-            </Поле>
+            </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-                <Поле label="Категория" подсказка="Показывается оранжевым над заголовком">
-                    <input
+            <div className="grid gap-5 sm:grid-cols-2">
+                <div className="space-y-2">
+                    <Label htmlFor="category">Категория</Label>
+                    <Input
+                        id="category"
                         name="category"
                         required
                         maxLength={50}
                         defaultValue={новость?.category ?? 'Новость'}
-                        className="w-full border border-gray-300 px-3 py-2 focus:border-orange-500 focus:outline-none"
                     />
-                </Поле>
+                    <p className="text-xs text-muted-foreground">
+                        Показывается оранжевым над заголовком
+                    </p>
+                </div>
 
-                <Поле label="Дата" подсказка="Можно поставить любую, не только сегодняшнюю">
-                    <input
+                <div className="space-y-2">
+                    <Label htmlFor="date">Дата</Label>
+                    <Input
+                        id="date"
                         type="date"
                         name="date"
                         required
                         defaultValue={новость?.date ?? new Date().toISOString().slice(0, 10)}
-                        className="w-full border border-gray-300 px-3 py-2 focus:border-orange-500 focus:outline-none"
                     />
-                </Поле>
+                    <p className="text-xs text-muted-foreground">
+                        Можно поставить любую, не только сегодняшнюю
+                    </p>
+                </div>
             </div>
 
-            <Поле label="Текст">
-                <textarea
+            <div className="space-y-2">
+                <Label htmlFor="text">Текст</Label>
+                <Textarea
+                    id="text"
                     name="text"
                     required
                     rows={10}
                     defaultValue={новость?.text ?? ''}
-                    className="w-full border border-gray-300 px-3 py-2 leading-relaxed focus:border-orange-500 focus:outline-none"
+                    className="leading-relaxed"
                 />
-            </Поле>
+            </div>
 
-            <Поле
-                label="Картинка"
-                подсказка="Путь к файлу в папке public, например /news1.png. Пусто — без картинки"
-            >
-                <input
+            <div className="space-y-2">
+                <Label htmlFor="image">Картинка</Label>
+                <Input
+                    id="image"
                     name="image"
                     maxLength={300}
                     placeholder="/news1.png"
                     defaultValue={новость?.image ?? ''}
-                    className="w-full border border-gray-300 px-3 py-2 focus:border-orange-500 focus:outline-none"
                 />
-            </Поле>
+                <p className="text-xs text-muted-foreground">
+                    Путь к файлу в папке public. Пусто — новость без картинки
+                </p>
+            </div>
 
-            <label className="flex items-center gap-2 border border-gray-200 bg-gray-50 p-3">
-                <input
-                    type="checkbox"
+            <div className="flex items-center gap-3 rounded-lg border p-4">
+                <Switch
+                    id="published"
                     name="published"
                     defaultChecked={новость?.published ?? false}
-                    className="h-4 w-4"
                 />
-                <span className="text-sm">
-                    <span className="font-bold">Опубликовать</span>
-                    <span className="ml-2 text-gray-500">
-                        снятая галочка — черновик, на сайте не виден
-                    </span>
-                </span>
-            </label>
+                <div>
+                    <Label htmlFor="published">Опубликовать</Label>
+                    <p className="text-xs text-muted-foreground">
+                        Выключено — черновик, на сайте не виден
+                    </p>
+                </div>
+            </div>
 
-            <div className="flex items-center gap-3 pt-2">
-                <button
-                    type="submit"
-                    className="rounded bg-orange-600 px-6 py-2.5 font-bold text-white transition-colors hover:bg-orange-700"
-                >
-                    Сохранить
-                </button>
-                <Link
-                    href="/admin/news"
-                    className="text-sm font-bold uppercase text-gray-400 hover:text-gray-700"
-                >
+            <div className="flex items-center gap-3 border-t pt-4">
+                <Button type="submit">Сохранить</Button>
+                <Link href="/admin/news" className={buttonVariants({ variant: 'ghost' })}>
                     Отмена
                 </Link>
             </div>
         </form>
-    );
-}
-
-function Поле({
-    label,
-    подсказка,
-    children,
-}: {
-    label: string;
-    подсказка?: string;
-    children: React.ReactNode;
-}) {
-    return (
-        <label className="block">
-            <span className="mb-1 block text-xs font-bold uppercase text-gray-500">{label}</span>
-            {children}
-            {подсказка && <span className="mt-1 block text-xs text-gray-400">{подсказка}</span>}
-        </label>
     );
 }

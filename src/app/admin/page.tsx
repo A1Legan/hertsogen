@@ -1,96 +1,101 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { auth, signOut } from '@/src/auth';
+import { Newspaper, Radio, ListOrdered, ArrowRight } from 'lucide-react';
 import { prisma } from '@/src/lib/prisma';
+import {
+    Card,
+    CardHeader,
+    CardTitle,
+    CardDescription,
+    CardContent,
+} from '@/src/components/ui/card';
+import { Badge } from '@/src/components/ui/badge';
 
-export const metadata: Metadata = {
-    title: 'Управление',
-    robots: { index: false, follow: false },
-};
-
-/** Админка всегда свежая: кэшировать её бессмысленно и вредно. */
+export const metadata: Metadata = { title: 'Обзор', robots: { index: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {
-    const сессия = await auth();
-
-    // Считаем всё одним заходом в базу вместо трёх подряд
-    const [новостей, черновиков, стримов, рейтинг] = await Promise.all([
+    // Четыре счётчика одним заходом вместо четырёх подряд
+    const [опубликовано, черновиков, стримов, вЭфире, рейтинг] = await Promise.all([
         prisma.news.count({ where: { published: true } }),
         prisma.news.count({ where: { published: false } }),
         prisma.stream.count(),
+        prisma.stream.count({ where: { isLive: true } }),
         prisma.communityRank.count(),
     ]);
 
     return (
-        <div className="min-h-screen bg-gray-100 px-4 py-8">
-            <div className="mx-auto max-w-3xl">
-                <div className="mb-6 flex items-center justify-between border-b border-gray-300 pb-4">
-                    <div>
-                        <h1 className="text-2xl font-black uppercase text-gray-900">Управление</h1>
-                        <p className="text-sm text-gray-500">{сессия?.user?.email}</p>
-                    </div>
+        <>
+            <h1 className="mb-1 text-2xl font-bold tracking-tight">Обзор</h1>
+            <p className="mb-6 text-sm text-muted-foreground">
+                Всё, что можно менять на сайте, находится здесь.
+            </p>
 
-                    <form
-                        action={async () => {
-                            'use server';
-                            await signOut({ redirectTo: '/' });
-                        }}
-                    >
-                        <button
-                            type="submit"
-                            className="text-xs font-bold uppercase text-gray-400 hover:text-orange-600"
-                        >
-                            Выйти
-                        </button>
-                    </form>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-3">
-                    <Раздел
-                        href="/admin/news"
-                        title="Новости"
-                        описание={`${новостей} опубликовано${черновиков ? `, ${черновиков} в черновиках` : ''}`}
-                    />
-                    <Раздел
-                        href="/admin/streams"
-                        title="Стримы"
-                        описание={`${стримов} в списке`}
-                    />
-                    <Раздел
-                        href="/admin/ranking"
-                        title="Свой рейтинг"
-                        описание={`${рейтинг} уровней`}
-                    />
-                </div>
-
-                <Link
-                    href="/"
-                    className="mt-6 inline-block text-xs font-bold uppercase text-gray-400 hover:text-orange-600"
-                >
-                    ← на сайт
-                </Link>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <ПлиткаРаздела
+                    href="/admin/news"
+                    icon={Newspaper}
+                    title="Новости"
+                    главное={String(опубликовано)}
+                    подпись="опубликовано"
+                    значок={черновиков > 0 ? `${черновиков} в черновиках` : null}
+                />
+                <ПлиткаРаздела
+                    href="/admin/streams"
+                    icon={Radio}
+                    title="Стримы"
+                    главное={String(стримов)}
+                    подпись="в списке"
+                    значок={вЭфире > 0 ? `${вЭфире} в эфире` : null}
+                />
+                <ПлиткаРаздела
+                    href="/admin/ranking"
+                    icon={ListOrdered}
+                    title="Свой рейтинг"
+                    главное={String(рейтинг)}
+                    подпись="уровней"
+                    значок={рейтинг === 0 ? 'пусто' : null}
+                />
             </div>
-        </div>
+        </>
     );
 }
 
-function Раздел({
+function ПлиткаРаздела({
     href,
+    icon: Icon,
     title,
-    описание,
+    главное,
+    подпись,
+    значок,
 }: {
     href: string;
+    icon: React.ComponentType<{ className?: string }>;
     title: string;
-    описание: string;
+    главное: string;
+    подпись: string;
+    значок: string | null;
 }) {
     return (
-        <Link
-            href={href}
-            className="block border border-gray-200 bg-white p-5 transition-all hover:border-orange-400 hover:shadow-sm"
-        >
-            <h2 className="mb-1 font-bold text-gray-900">{title}</h2>
-            <p className="text-sm text-gray-500">{описание}</p>
+        <Link href={href} className="group">
+            <Card className="h-full transition-colors group-hover:border-orange-400">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                        <Icon className="size-4 text-muted-foreground" />
+                        {title}
+                        <ArrowRight className="ml-auto size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                    </CardTitle>
+                    <CardDescription>{подпись}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex items-end gap-3">
+                    <span className="text-3xl font-bold tabular-nums">{главное}</span>
+                    {значок && (
+                        <Badge variant="secondary" className="mb-1">
+                            {значок}
+                        </Badge>
+                    )}
+                </CardContent>
+            </Card>
         </Link>
     );
 }

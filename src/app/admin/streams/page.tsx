@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Plus, Pencil, Eye, EyeOff } from 'lucide-react';
+import { Plus, Pencil, Radio, RadioTower } from 'lucide-react';
 import { prisma } from '@/src/lib/prisma';
 import { Button, buttonVariants } from '@/src/components/ui/button';
 import { Badge } from '@/src/components/ui/badge';
@@ -14,44 +14,40 @@ import {
     TableRow,
 } from '@/src/components/ui/table';
 import { DeleteButton } from '@/src/components/admin/DeleteButton';
-import { удалитьНовость, переключитьПубликацию } from './actions';
+import { Flag } from '@/src/components/Flag';
+import { удалитьСтрим, переключитьЭфир } from './actions';
 
-export const metadata: Metadata = { title: 'Новости', robots: { index: false } };
+export const metadata: Metadata = { title: 'Стримы', robots: { index: false } };
 export const dynamic = 'force-dynamic';
 
-export default async function AdminNewsPage() {
-    // Все, включая черновики — в отличие от getNews() для публичного сайта
-    const новости = await prisma.news.findMany({ orderBy: { date: 'desc' } });
+export default async function AdminStreamsPage() {
+    const стримы = await prisma.stream.findMany({
+        orderBy: [{ isLive: 'desc' }, { sortOrder: 'asc' }, { progress: 'desc' }],
+    });
 
     return (
         <>
             <div className="mb-6 flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Новости</h1>
+                    <h1 className="text-2xl font-bold tracking-tight">Стримы и прогрессы</h1>
                     <p className="text-sm text-muted-foreground">
-                        Черновики видны только здесь, на сайт они не попадают.
+                        Те, кто в эфире, показываются на сайте первыми.
                     </p>
                 </div>
-                {/*
-                    Ссылка со стилями кнопки, а не <Button render={<Link/>}>.
-                    Base UI ждёт внутри Button настоящий <button>, а ссылка —
-                    это <a>. Подменять одно другим он не даёт, и правильно:
-                    у кнопки и ссылки разное поведение с клавиатурой.
-                */}
-                <Link href="/admin/news/new" className={buttonVariants()}>
+                <Link href="/admin/streams/new" className={buttonVariants()}>
                     <Plus className="size-4" />
-                    Написать
+                    Добавить
                 </Link>
             </div>
 
-            {новости.length === 0 ? (
+            {стримы.length === 0 ? (
                 <Card className="p-12 text-center">
                     <p className="mb-4 text-muted-foreground">Пока ничего нет</p>
                     <Link
-                        href="/admin/news/new"
+                        href="/admin/streams/new"
                         className={buttonVariants({ variant: 'outline' })}
                     >
-                        Написать первую
+                        Добавить первый
                     </Link>
                 </Card>
             ) : (
@@ -59,62 +55,60 @@ export default async function AdminNewsPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Заголовок</TableHead>
-                                <TableHead className="w-32">Категория</TableHead>
-                                <TableHead className="w-28">Дата</TableHead>
-                                <TableHead className="w-28">Статус</TableHead>
+                                <TableHead>Игрок</TableHead>
+                                <TableHead>Уровень</TableHead>
+                                <TableHead className="w-24">Прогресс</TableHead>
+                                <TableHead className="w-28">Эфир</TableHead>
                                 <TableHead className="w-32 text-right">Действия</TableHead>
                             </TableRow>
                         </TableHeader>
 
                         <TableBody>
-                            {новости.map((н) => (
-                                <TableRow key={н.id}>
-                                    <TableCell className="max-w-0 truncate font-medium">
-                                        {н.title}
-                                    </TableCell>
-                                    <TableCell className="text-muted-foreground">
-                                        {н.category}
-                                    </TableCell>
-                                    <TableCell className="tabular-nums text-muted-foreground">
-                                        {н.date.toISOString().slice(0, 10)}
-                                    </TableCell>
+                            {стримы.map((с) => (
+                                <TableRow key={с.id}>
                                     <TableCell>
-                                        {н.published ? (
-                                            <Badge variant="secondary">на сайте</Badge>
+                                        <span className="flex items-center gap-2 font-medium">
+                                            <Flag country={с.playerCountry} />
+                                            {с.playerName}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell className="max-w-0 truncate text-muted-foreground">
+                                        {с.levelName}
+                                    </TableCell>
+                                    <TableCell className="tabular-nums">{с.progress}%</TableCell>
+                                    <TableCell>
+                                        {с.isLive ? (
+                                            <Badge className="bg-red-600 text-white">в эфире</Badge>
                                         ) : (
-                                            <Badge variant="outline">черновик</Badge>
+                                            <Badge variant="outline">не в эфире</Badge>
                                         )}
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center justify-end gap-0.5">
-                                            {/*
-                                                Отдельная форма на кнопку: вложенных
-                                                форм в HTML не бывает, а каждое
-                                                действие уходит со своими данными.
-                                            */}
                                             <form
                                                 action={async () => {
                                                     'use server';
-                                                    await переключитьПубликацию(н.id);
+                                                    await переключитьЭфир(с.id);
                                                 }}
                                             >
                                                 <Button
                                                     type="submit"
                                                     variant="ghost"
                                                     size="icon"
-                                                    aria-label={н.published ? 'Скрыть' : 'Опубликовать'}
+                                                    aria-label={
+                                                        с.isLive ? 'Снять с эфира' : 'Пометить в эфире'
+                                                    }
                                                 >
-                                                    {н.published ? (
-                                                        <EyeOff className="size-4 text-muted-foreground" />
+                                                    {с.isLive ? (
+                                                        <RadioTower className="size-4 text-red-600" />
                                                     ) : (
-                                                        <Eye className="size-4 text-muted-foreground" />
+                                                        <Radio className="size-4 text-muted-foreground" />
                                                     )}
                                                 </Button>
                                             </form>
 
                                             <Link
-                                                href={`/admin/news/${н.id}`}
+                                                href={`/admin/streams/${с.id}`}
                                                 aria-label="Править"
                                                 className={buttonVariants({
                                                     variant: 'ghost',
@@ -125,11 +119,11 @@ export default async function AdminNewsPage() {
                                             </Link>
 
                                             <DeleteButton
-                                                название={н.title}
-                                                что="Новость"
+                                                название={`${с.playerName} — ${с.levelName}`}
+                                                что="Стрим"
                                                 action={async () => {
                                                     'use server';
-                                                    await удалитьНовость(н.id);
+                                                    await удалитьСтрим(с.id);
                                                 }}
                                             />
                                         </div>

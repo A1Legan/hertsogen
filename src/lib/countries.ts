@@ -159,3 +159,15 @@ const COUNTRY_CODES: Record<string, string> = {
 export function countryCode(name: string): string | null {
   return COUNTRY_CODES[name] ?? null;
 }
+
+/**
+ * Все страны по алфавиту — для выпадающего списка в админке.
+ * Названия должны совпадать с форматом Global Demonlist ('United-States'),
+ * иначе флаг не найдётся. Список берём отсюда, чтобы не вводить руками.
+ */
+export const НАЗВАНИЯ_СТРАН = Object.keys(COUNTRY_CODES).sort();
+
+/** Как страна называется по-человечески: 'United-States' -> 'United States'. */
+export function читаемаяСтрана(name: string): string {
+  return name.replace(/-/g, ' ');
+}
