@@ -1,8 +1,17 @@
 import Link from 'next/link';
-import { Newspaper, Radio, ListOrdered, LayoutDashboard, LogOut, ExternalLink } from 'lucide-react';
+import {
+    Newspaper,
+    Radio,
+    ListOrdered,
+    LayoutDashboard,
+    LogOut,
+    ExternalLink,
+    Inbox,
+} from 'lucide-react';
 import { auth, signOut } from '@/src/auth';
 import { Button } from '@/src/components/ui/button';
 import { Toaster } from '@/src/components/ui/sonner';
+import { ждутРассмотрения } from '@/src/lib/submissions';
 
 /**
  * Оболочка админки: боковое меню, шапка с почтой, выход.
@@ -16,6 +25,7 @@ import { Toaster } from '@/src/components/ui/sonner';
 
 const РАЗДЕЛЫ = [
     { href: '/admin', label: 'Обзор', icon: LayoutDashboard },
+    { href: '/admin/submissions', label: 'Заявки', icon: Inbox },
     { href: '/admin/news', label: 'Новости', icon: Newspaper },
     { href: '/admin/streams', label: 'Стримы', icon: Radio },
     { href: '/admin/ranking', label: 'Свой рейтинг', icon: ListOrdered },
@@ -32,6 +42,9 @@ export default async function AdminLayout({
         // Не вошли — значит это страница входа, показываем её как есть
         return <>{children}</>;
     }
+
+    // Счётчик новых заявок — чтобы они не лежали незамеченными
+    const новыхЗаявок = await ждутРассмотрения();
 
     return (
         <div className="min-h-screen bg-muted/40">
@@ -55,6 +68,11 @@ export default async function AdminLayout({
                             >
                                 <р.icon className="size-4" />
                                 {р.label}
+                                {р.href === '/admin/submissions' && новыхЗаявок > 0 && (
+                                    <span className="ml-auto rounded-full bg-orange-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                                        {новыхЗаявок}
+                                    </span>
+                                )}
                             </Link>
                         ))}
                     </nav>

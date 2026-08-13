@@ -92,17 +92,36 @@ export function NewsForm({
                 />
             </div>
 
-            <div className="space-y-2">
-                <Label htmlFor="image">Картинка</Label>
+            <div className="space-y-3 rounded-lg border p-4">
+                <Label htmlFor="картинка">Картинка</Label>
+
+                {новость?.image && (
+                    <div className="space-y-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={новость.image}
+                            alt=""
+                            className="h-32 w-full rounded border object-cover"
+                        />
+                        <label className="flex items-center gap-2 text-sm">
+                            <input type="checkbox" name="удалитьКартинку" className="h-4 w-4" />
+                            <span className="text-muted-foreground">Убрать картинку</span>
+                        </label>
+                    </div>
+                )}
+
                 <Input
-                    id="image"
-                    name="image"
-                    maxLength={300}
-                    placeholder="/news1.png"
-                    defaultValue={новость?.image ?? ''}
+                    id="картинка"
+                    type="file"
+                    name="картинка"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="cursor-pointer file:mr-3 file:cursor-pointer file:rounded file:border-0 file:bg-muted file:px-3 file:py-1 file:text-sm"
                 />
                 <p className="text-xs text-muted-foreground">
-                    Путь к файлу в папке public. Пусто — новость без картинки
+                    JPG, PNG, WebP или GIF, до 5 МБ.{' '}
+                    {новость?.image
+                        ? 'Выберите новый файл, чтобы заменить.'
+                        : 'Можно оставить пустым.'}
                 </p>
             </div>
 

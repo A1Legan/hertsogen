@@ -51,6 +51,10 @@ export default async function EditStreamPage({
                             url: стрим.url,
                             isLive: стрим.isLive,
                             sortOrder: стрим.sortOrder,
+                            twitchLogin: стрим.twitchLogin,
+                            youtubeVideoId: стрим.youtubeVideoId,
+                            streamTitle: стрим.streamTitle,
+                            updateToken: стрим.updateToken,
                         }}
                     />
                 </CardContent>

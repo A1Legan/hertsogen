@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/src/auth';
 import { prisma } from '@/src/lib/prisma';
+import { idВидео } from '@/src/lib/youtube';
 
 /**
  * Действия над стримами. Устроено так же, как actions.ts для новостей.
@@ -29,10 +30,20 @@ const ФормаСтрима = z.object({
     url: z.string().trim().url('Нужна полная ссылка, вместе с https://').max(300),
     isLive: z.boolean(),
     sortOrder: z.coerce.number().int().min(0).max(9999),
+
+    /// Ник на Twitch — по нему статус эфира обновляется сам
+    twitchLogin: z.string().trim().max(60).nullable(),
+    /// id видео с YouTube. Принимаем и ссылку, и голый id — разберём ниже
+    youtubeVideoId: z.string().trim().max(200).nullable(),
 });
 
+const пусто = (v: FormDataEntryValue | null) => {
+    const s = String(v ?? '').trim();
+    return s === '' ? null : s;
+};
+
 function разобратьФорму(form: FormData) {
-    return ФормаСтрима.parse({
+    const данные = ФормаСтрима.parse({
         playerName: form.get('playerName'),
         playerCountry: form.get('playerCountry'),
         levelName: form.get('levelName'),
@@ -41,7 +52,19 @@ function разобратьФорму(form: FormData) {
         // Невыбранный переключатель в форме не приходит вообще
         isLive: form.get('isLive') === 'on',
         sortOrder: form.get('sortOrder') || 0,
+        twitchLogin: пусто(form.get('twitchLogin')),
+        youtubeVideoId: пусто(form.get('youtubeVideoId')),
     });
+
+    return {
+        ...данные,
+        // Ник Twitch приводим к нижнему регистру: сравнивать с ответом
+        // площадки проще, когда обе стороны в одном виде
+        twitchLogin: данные.twitchLogin?.toLowerCase() ?? null,
+        // Из поля YouTube достаём id — человек вставит ссылку целиком,
+        // и правильно сделает: помнить одиннадцать символов незачем
+        youtubeVideoId: данные.youtubeVideoId ? idВидео(данные.youtubeVideoId) : null,
+    };
 }
 
 function обновитьСайт() {

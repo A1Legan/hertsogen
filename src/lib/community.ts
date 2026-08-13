@@ -1,5 +1,6 @@
 import { prisma } from './prisma';
 import { getLevels, type Level } from './demonlist';
+import { очкиЗаПозицию } from './points';
 
 /**
  * Собственный рейтинг H&CR — вторая вкладка на странице уровней.
@@ -10,12 +11,12 @@ import { getLevels, type Level } from './demonlist';
  */
 
 export type CommunityLevel = {
-    /** Данные уровня из API */
+    /**
+     * Данные уровня из API, но position, requirement и points уже
+     * подменены на наши. Компонентам не надо знать, из какого рейтинга
+     * пришли эти числа — они просто рисуют то, что дали.
+     */
     level: Level;
-    /** Наша позиция, а не позиция Global Demonlist */
-    position: number;
-    /** Наш требуемый процент */
-    requirement: number;
     /** Комментарий редакции: почему уровень стоит именно здесь */
     note: string | null;
 };
@@ -39,13 +40,24 @@ export async function getCommunityRanking(): Promise<CommunityLevel[]> {
     const результат: CommunityLevel[] = [];
 
     for (const р of ранги) {
-        const level = поId.get(р.levelId);
-        if (!level) continue; // уровня больше нет в источнике — пропускаем
+        const исходный = поId.get(р.levelId);
+        if (!исходный) continue; // уровня больше нет в источнике — пропускаем
 
         результат.push({
-            level,
-            position: р.position,
-            requirement: р.requirement,
+            level: {
+                ...исходный,
+
+                // Позиция, требование и очки — НАШИ, а не из Global Demonlist.
+                //
+                // Очки считаются из нашей позиции по той же таблице, что у них
+                // (см. points.ts). Брать очки, которые чужой список выдал этому
+                // уровню, нельзя: они означают место в чужом порядке. Уровень,
+                // стоящий у нас первым, должен давать 1000 очков, даже если
+                // у Global он тридцатый.
+                position: р.position,
+                requirement: р.requirement,
+                points: очкиЗаПозицию(р.position) ?? 0,
+            },
             note: р.note,
         });
     }

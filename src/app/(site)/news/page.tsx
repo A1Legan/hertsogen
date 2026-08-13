@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Image from 'next/image';
 import { getNews } from '@/src/lib/news';
 import { Shell, PageHeading } from '@/src/components/Shell';
 
@@ -27,11 +26,17 @@ export default async function NewsPage() {
                         className="animate-card-entry mb-6 overflow-hidden border border-gray-200 bg-white shadow-sm"
                     >
                         {n.image && (
-                            <Image
+                            // Обычный img, а не next/image: адрес картинки
+                            // теперь во внешнем хранилище, и его домен задаётся
+                            // переменной окружения. next/image требует
+                            // перечислить разрешённые домены в next.config.ts
+                            // на этапе сборки — при смене хранилища пришлось бы
+                            // править конфиг и пересобирать.
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
                                 src={n.image}
                                 alt=""
-                                width={800}
-                                height={400}
+                                loading="lazy"
                                 className="h-48 w-full border-b border-gray-200 object-cover sm:h-64"
                             />
                         )}

@@ -38,18 +38,14 @@ export default async function CommunityRatingPage() {
                 ) : (
                     ranking.map((item, index) => (
                         <div key={item.level.id}>
-                            <LevelCard
-                                // Подменяем позицию и требование на наши:
-                                // сама карточка не знает и не должна знать,
-                                // из какого рейтинга пришли эти числа
-                                level={{
-                                    ...item.level,
-                                    position: item.position,
-                                    requirement: item.requirement,
-                                }}
-                                players={players}
-                                index={index}
-                            />
+                            {/*
+                                Позиция, требование и очки внутри item.level
+                                уже наши — их подменил getCommunityRanking().
+                                Карточка не знает, из какого рейтинга пришли
+                                числа, и знать не должна.
+                            */}
+                            <LevelCard level={item.level} players={players} index={index} />
+
                             {item.note && (
                                 <p className="-mt-2 mb-4 border-l-4 border-orange-300 bg-orange-50 px-4 py-2 text-sm text-gray-700">
                                     {item.note}

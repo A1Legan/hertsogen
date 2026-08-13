@@ -45,4 +45,13 @@ next-env.d.ts
 sample-*.json
 country-map.json
 
+# сгенерированный клиент Prisma — пересоздаётся командой prisma generate,
+# она же прописана в build. Хранить нечего.
 /src/generated/prisma
+
+# подсказки для ИИ-редакторов, которые насоздавал prisma init.
+# К работе сайта отношения не имеют, а в git status их сотни.
+/.agents
+/.claude
+/.windsurf
+/skills-lock.json

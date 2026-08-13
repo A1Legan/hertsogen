@@ -4,6 +4,7 @@ import { Label } from '@/src/components/ui/label';
 import { Switch } from '@/src/components/ui/switch';
 import { Button, buttonVariants } from '@/src/components/ui/button';
 import { НАЗВАНИЯ_СТРАН, читаемаяСтрана } from '@/src/lib/countries';
+import { процентИзНазвания as подсказкаПроцента } from '@/src/lib/live';
 
 export type ЗначенияСтрима = {
     playerName: string;
@@ -13,6 +14,12 @@ export type ЗначенияСтрима = {
     url: string;
     isLive: boolean;
     sortOrder: number;
+    twitchLogin: string | null;
+    youtubeVideoId: string | null;
+    /** Название трансляции с площадки — из него предлагается процент */
+    streamTitle?: string | null;
+    /** Личная ссылка стримера для обновления процента */
+    updateToken?: string | null;
 };
 
 /**
@@ -127,15 +134,84 @@ export function StreamForm({
                 </p>
             </div>
 
+            <div className="space-y-4 rounded-lg border p-4">
+                <div>
+                    <p className="text-sm font-medium">Отслеживать эфир автоматически</p>
+                    <p className="text-xs text-muted-foreground">
+                        Заполните одно из полей — и статус «в эфире» перестанет требовать
+                        ручного переключения
+                    </p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                        <Label htmlFor="twitchLogin">Ник на Twitch</Label>
+                        <Input
+                            id="twitchLogin"
+                            name="twitchLogin"
+                            maxLength={60}
+                            placeholder="zoink"
+                            defaultValue={стрим?.twitchLogin ?? ''}
+                        />
+                        <p className="text-xs text-muted-foreground">Указывается один раз</p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="youtubeVideoId">Ссылка на эфир YouTube</Label>
+                        <Input
+                            id="youtubeVideoId"
+                            name="youtubeVideoId"
+                            maxLength={200}
+                            placeholder="https://youtube.com/watch?v=..."
+                            defaultValue={стрим?.youtubeVideoId ?? ''}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Меняется при каждом новом эфире — так дешевле по квоте
+                        </p>
+                    </div>
+                </div>
+
+                {стрим?.streamTitle && (
+                    <div className="rounded border bg-muted/40 p-3">
+                        <p className="mb-1 text-xs font-medium uppercase text-muted-foreground">
+                            Название трансляции при последней проверке
+                        </p>
+                        <p className="text-sm">{стрим.streamTitle}</p>
+                        {подсказкаПроцента(стрим.streamTitle) !== null && (
+                            <p className="mt-2 text-xs text-muted-foreground">
+                                В названии нашлось{' '}
+                                <span className="font-bold text-foreground">
+                                    {подсказкаПроцента(стрим.streamTitle)}%
+                                </span>{' '}
+                                — впишите вручную, если это тот самый процент
+                            </p>
+                        )}
+                    </div>
+                )}
+            </div>
+
             <div className="flex items-center gap-3 rounded-lg border p-4">
                 <Switch id="isLive" name="isLive" defaultChecked={стрим?.isLive ?? false} />
                 <div>
                     <Label htmlFor="isLive">Сейчас в эфире</Label>
                     <p className="text-xs text-muted-foreground">
-                        Такие показываются первыми, с красным огоньком
+                        Если площадка указана выше, это поле перезапишется автоматически
                     </p>
                 </div>
             </div>
+
+            {стрим?.updateToken && (
+                <div className="space-y-2 rounded-lg border border-orange-200 bg-orange-50 p-4">
+                    <p className="text-sm font-medium">Личная ссылка стримера</p>
+                    <code className="block break-all rounded bg-white px-3 py-2 text-xs">
+                        /update/{стрим.updateToken}
+                    </code>
+                    <p className="text-xs text-muted-foreground">
+                        Отправьте её игроку — по ней он меняет свой процент сам, без входа
+                        и пароля. Не публикуйте: кто знает ссылку, тот может править эту строку.
+                    </p>
+                </div>
+            )}
 
             <div className="flex items-center gap-3 border-t pt-4">
                 <Button type="submit">Сохранить</Button>
