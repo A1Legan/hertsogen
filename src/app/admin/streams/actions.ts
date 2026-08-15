@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/src/auth';
 import { prisma } from '@/src/lib/prisma';
-import { idВидео } from '@/src/lib/youtube';
+import { idКанала } from '@/src/lib/youtube';
 
 /**
  * Действия над стримами. Устроено так же, как actions.ts для новостей.
@@ -33,8 +33,8 @@ const ФормаСтрима = z.object({
 
     /// Ник на Twitch — по нему статус эфира обновляется сам
     twitchLogin: z.string().trim().max(60).nullable(),
-    /// id видео с YouTube. Принимаем и ссылку, и голый id — разберём ниже
-    youtubeVideoId: z.string().trim().max(200).nullable(),
+    /// Канал YouTube: ссылка, @ник или сам идентификатор UC...
+    youtubeChannel: z.string().trim().max(200).nullable(),
 });
 
 const пусто = (v: FormDataEntryValue | null) => {
@@ -42,7 +42,7 @@ const пусто = (v: FormDataEntryValue | null) => {
     return s === '' ? null : s;
 };
 
-function разобратьФорму(form: FormData) {
+async function разобратьФорму(form: FormData) {
     const данные = ФормаСтрима.parse({
         playerName: form.get('playerName'),
         playerCountry: form.get('playerCountry'),
@@ -53,37 +53,38 @@ function разобратьФорму(form: FormData) {
         isLive: form.get('isLive') === 'on',
         sortOrder: form.get('sortOrder') || 0,
         twitchLogin: пусто(form.get('twitchLogin')),
-        youtubeVideoId: пусто(form.get('youtubeVideoId')),
+        youtubeChannel: пусто(form.get('youtubeChannel')),
     });
 
-    // Из поля YouTube достаём id — человек вставит ссылку целиком,
-    // и правильно сделает: помнить одиннадцать символов незачем.
+    // Канал превращаем в идентификатор один раз, при сохранении.
+    // Человек вставит ссылку или @ник — помнить UC... наизусть незачем.
     //
-    // Но если в поле оказалось не то (например, ссылка на Twitch или на
-    // канал вместо трансляции), раньше сюда молча записывался null:
-    // ошибки нет, отслеживания тоже нет, и понять почему — невозможно.
-    // Лучше отказать с объяснением, чем принять и потерять.
-    let youtubeVideoId: string | null = null;
+    // Если разобрать не вышло, отказываем с объяснением. Раньше в таком
+    // случае молча записывался null: ошибки нет, отслеживания тоже нет,
+    // и понять почему невозможно.
+    let youtubeChannelId: string | null = null;
 
-    if (данные.youtubeVideoId) {
-        youtubeVideoId = idВидео(данные.youtubeVideoId);
+    if (данные.youtubeChannel) {
+        youtubeChannelId = await idКанала(данные.youtubeChannel);
 
-        if (!youtubeVideoId) {
+        if (!youtubeChannelId) {
             throw new Error(
-                'В поле YouTube нужна ссылка на конкретную трансляцию, ' +
-                    'вида https://www.youtube.com/watch?v=... — ' +
-                    'ссылка на канал или на другую площадку не подойдёт. ' +
-                    'Для Twitch есть отдельное поле слева.',
+                'Не удалось разобрать канал YouTube. Подойдёт ссылка вида ' +
+                    'youtube.com/@ник, youtube.com/channel/UC... или сам ' +
+                    'идентификатор. Ссылка на конкретное видео или на другую ' +
+                    'площадку не годится — для Twitch есть отдельное поле слева.',
             );
         }
     }
 
+    const { youtubeChannel: _, ...остальное } = данные;
+
     return {
-        ...данные,
+        ...остальное,
         // Ник Twitch приводим к нижнему регистру: сравнивать с ответом
         // площадки проще, когда обе стороны в одном виде
         twitchLogin: данные.twitchLogin?.toLowerCase() ?? null,
-        youtubeVideoId,
+        youtubeChannelId,
     };
 }
 
@@ -95,14 +96,14 @@ function обновитьСайт() {
 
 export async function создатьСтрим(form: FormData) {
     await проверитьДоступ();
-    await prisma.stream.create({ data: разобратьФорму(form) });
+    await prisma.stream.create({ data: await разобратьФорму(form) });
     обновитьСайт();
     redirect('/admin/streams');
 }
 
 export async function обновитьСтрим(id: string, form: FormData) {
     await проверитьДоступ();
-    await prisma.stream.update({ where: { id }, data: разобратьФорму(form) });
+    await prisma.stream.update({ where: { id }, data: await разобратьФорму(form) });
     обновитьСайт();
     redirect('/admin/streams');
 }

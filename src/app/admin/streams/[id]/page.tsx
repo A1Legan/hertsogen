@@ -52,6 +52,7 @@ export default async function EditStreamPage({
                             isLive: стрим.isLive,
                             sortOrder: стрим.sortOrder,
                             twitchLogin: стрим.twitchLogin,
+                            youtubeChannelId: стрим.youtubeChannelId,
                             youtubeVideoId: стрим.youtubeVideoId,
                             streamTitle: стрим.streamTitle,
                             updateToken: стрим.updateToken,

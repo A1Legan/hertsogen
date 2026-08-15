@@ -15,7 +15,9 @@ export type ЗначенияСтрима = {
     isLive: boolean;
     sortOrder: number;
     twitchLogin: string | null;
-    youtubeVideoId: string | null;
+    youtubeChannelId: string | null;
+    /** Найденная трансляция — заполняется само, показываем для сведения */
+    youtubeVideoId?: string | null;
     /** Название трансляции с площадки — из него предлагается процент */
     streamTitle?: string | null;
     /** Личная ссылка стримера для обновления процента */
@@ -157,16 +159,16 @@ export function StreamForm({
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="youtubeVideoId">Ссылка на эфир YouTube</Label>
+                        <Label htmlFor="youtubeChannel">Канал на YouTube</Label>
                         <Input
-                            id="youtubeVideoId"
-                            name="youtubeVideoId"
+                            id="youtubeChannel"
+                            name="youtubeChannel"
                             maxLength={200}
-                            placeholder="https://youtube.com/watch?v=..."
-                            defaultValue={стрим?.youtubeVideoId ?? ''}
+                            placeholder="https://youtube.com/@ник"
+                            defaultValue={стрим?.youtubeChannelId ?? ''}
                         />
                         <p className="text-xs text-muted-foreground">
-                            Меняется при каждом новом эфире — так дешевле по квоте
+                            Ссылка на канал или @ник. Тоже указывается один раз
                         </p>
                     </div>
                 </div>

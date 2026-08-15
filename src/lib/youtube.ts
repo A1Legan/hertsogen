@@ -40,6 +40,102 @@ const ОтветВидео = z.object({
     ),
 });
 
+/* ------------------------------------------------------------------ *
+ * ПОИСК ЭФИРА НА КАНАЛЕ
+ *
+ * Дорогая операция: 100 единиц квоты за вызов при суточных 10 000.
+ * Поэтому частоту считаем от числа каналов, а найденное видео запоминаем
+ * и дальше опрашиваем уже его — за 1 единицу.
+ * ------------------------------------------------------------------ */
+
+/** Сколько поисков в сутки готовы потратить. Остальное — на дешёвые проверки. */
+const БЮДЖЕТ_ПОИСКОВ_В_СУТКИ = 90;
+
+/**
+ * Как часто искать эфир на одном канале.
+ *
+ * Считается от числа каналов, чтобы бюджет делился поровну и не зависел
+ * от того, сколько стримеров добавят завтра. Один канал — раз в 16 минут,
+ * три — раз в 48, десять — раз в три часа.
+ *
+ * Не реже раза в 15 минут: чаще нет смысла, эфир не начинается по секундам.
+ */
+export function интервалПоискаМс(каналов: number): number {
+    if (каналов <= 0) return Infinity;
+
+    const поисковНаКанал = БЮДЖЕТ_ПОИСКОВ_В_СУТКИ / каналов;
+    const интервал = (24 * 60 * 60 * 1000) / поисковНаКанал;
+
+    return Math.max(15 * 60 * 1000, интервал);
+}
+
+const ОтветПоиска = z.object({
+    items: z.array(
+        z.object({
+            id: z.object({ videoId: z.string().nullish() }).nullish(),
+            snippet: z.object({ title: z.string().nullish() }).nullish(),
+        }),
+    ),
+});
+
+/**
+ * Ищет живой эфир на канале. Возвращает id видео или null.
+ *
+ * Каждый вызов — 100 единиц квоты, поэтому вызывать только тогда,
+ * когда интервал действительно прошёл.
+ */
+export async function найтиЭфирНаКанале(channelId: string): Promise<string | null> {
+    if (!youtubeНастроен()) return null;
+
+    const url = new URL('https://www.googleapis.com/youtube/v3/search');
+    url.searchParams.set('part', 'id,snippet');
+    url.searchParams.set('channelId', channelId);
+    url.searchParams.set('eventType', 'live');
+    url.searchParams.set('type', 'video');
+    url.searchParams.set('maxResults', '1');
+    url.searchParams.set('key', API_KEY!);
+
+    const res = await fetch(url, { cache: 'no-store' });
+
+    if (!res.ok) {
+        const тело = await res.text().catch(() => '');
+        throw new Error(`Поиск эфира на канале вернул HTTP ${res.status}. ${тело.slice(0, 200)}`);
+    }
+
+    const данные = ОтветПоиска.parse(await res.json());
+    return данные.items[0]?.id?.videoId ?? null;
+}
+
+/**
+ * Превращает ссылку на канал в его id.
+ *
+ * Принимает три вида: /channel/UC..., /@ник и просто UC....
+ * Для ника нужен запрос к API — но он стоит 1 единицу, и делается
+ * один раз при сохранении, а не при каждой проверке.
+ */
+export async function idКанала(строка: string): Promise<string | null> {
+    const s = строка.trim();
+
+    // Сам идентификатор или ссылка вида /channel/UC...
+    const прямой = s.match(/(?:channel\/)?(UC[\w-]{22})/);
+    if (прямой) return прямой[1];
+
+    // Ссылка вида youtube.com/@ник или просто @ник
+    const ник = s.match(/(?:youtube\.com\/)?@([\w.-]+)/);
+    if (!ник || !youtubeНастроен()) return null;
+
+    const url = new URL('https://www.googleapis.com/youtube/v3/channels');
+    url.searchParams.set('part', 'id');
+    url.searchParams.set('forHandle', '@' + ник[1]);
+    url.searchParams.set('key', API_KEY!);
+
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) return null;
+
+    const данные = await res.json();
+    return данные?.items?.[0]?.id ?? null;
+}
+
 /** Достаёт 11-символьный id видео из любой формы ссылки YouTube. */
 export function idВидео(строка: string): string | null {
     const s = строка.trim();
