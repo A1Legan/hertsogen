@@ -48,7 +48,21 @@ async function получитьТокен(): Promise<string> {
     });
 
     if (!res.ok) {
-        throw new Error(`Twitch не выдал токен: HTTP ${res.status}`);
+        // Twitch кладёт причину в тело ответа, и она бывает точной:
+        // 'invalid client' — не тот id, 'invalid client secret' — не тот секрет.
+        // Раньше я это выбрасывал и оставлял голый номер ошибки — искать
+        // по нему причину невозможно.
+        const подробности = await res.text().catch(() => '');
+
+        const подсказка =
+            res.status === 400 || res.status === 401
+                ? ' Скорее всего перепутаны местами TWITCH_CLIENT_ID и TWITCH_CLIENT_SECRET, ' +
+                  'либо секрет устарел — Twitch показывает его один раз.'
+                : '';
+
+        throw new Error(
+            `Twitch не выдал токен: HTTP ${res.status}. ${подробности}${подсказка}`,
+        );
     }
 
     const данные = ОтветТокена.parse(await res.json());
