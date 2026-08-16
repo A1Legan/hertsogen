@@ -27,7 +27,7 @@ export default async function AdminSubmissionsPage() {
     return (
         <>
             <div className="mb-6">
-                <h1 className="text-2xl font-bold tracking-tight">Заявки на рекорд</h1>
+                <h1 className="text-2xl font-bold tracking-tight">Заявки</h1>
                 <p className="text-sm text-muted-foreground">
                     Присланное посетителями. На сайт попадает только после одобрения.
                 </p>
@@ -47,6 +47,11 @@ export default async function AdminSubmissionsPage() {
                                         <div className="flex items-center gap-2 text-lg font-bold">
                                             <Flag country={з.playerCountry} />
                                             {з.playerName}
+                                            {з.kind === 'STREAMER' ? (
+                                                <Badge variant="secondary">стример</Badge>
+                                            ) : (
+                                                <Badge variant="outline">рекорд</Badge>
+                                            )}
                                         </div>
                                         <p className="text-sm text-muted-foreground">
                                             {з.levelName} — {з.progress}%
@@ -59,15 +64,43 @@ export default async function AdminSubmissionsPage() {
                                     </span>
                                 </div>
 
-                                <a
-                                    href={з.videoUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline"
-                                >
-                                    <ExternalLink className="size-3.5" />
-                                    Посмотреть видео
-                                </a>
+                                <div className="flex flex-wrap gap-4">
+                                    {з.videoUrl && (
+                                        <a
+                                            href={з.videoUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline"
+                                        >
+                                            <ExternalLink className="size-3.5" />
+                                            Посмотреть видео
+                                        </a>
+                                    )}
+
+                                    {з.twitchLogin && (
+                                        <a
+                                            href={`https://www.twitch.tv/${з.twitchLogin}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline"
+                                        >
+                                            <ExternalLink className="size-3.5" />
+                                            Twitch: {з.twitchLogin}
+                                        </a>
+                                    )}
+
+                                    {з.youtubeChannelId && (
+                                        <a
+                                            href={`https://www.youtube.com/channel/${з.youtubeChannelId}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline"
+                                        >
+                                            <ExternalLink className="size-3.5" />
+                                            Канал YouTube
+                                        </a>
+                                    )}
+                                </div>
 
                                 {з.comment && (
                                     <p className="rounded border bg-muted/40 p-3 text-sm whitespace-pre-line">

@@ -37,6 +37,19 @@ export async function одобритьЗаявку(id: string) {
     const заявка = await prisma.submission.findUnique({ where: { id } });
     if (!заявка || заявка.status !== 'PENDING') return;
 
+    // Ссылка, по которой посетитель попадёт к стримеру.
+    //
+    // У рекорда это видео прохождения. У стримера видео может не быть
+    // вовсе, зато есть площадка — собираем ссылку из неё.
+    const ссылка =
+        заявка.videoUrl ??
+        (заявка.twitchLogin ? `https://www.twitch.tv/${заявка.twitchLogin}` : null) ??
+        (заявка.youtubeChannelId
+            ? `https://www.youtube.com/channel/${заявка.youtubeChannelId}`
+            : null);
+
+    if (!ссылка) return; // ни видео, ни площадки — показывать нечего
+
     // Две операции одной транзакцией: если создание стрима упадёт,
     // заявка не должна остаться помеченной как одобренная
     await prisma.$transaction([
@@ -46,8 +59,15 @@ export async function одобритьЗаявку(id: string) {
                 playerCountry: заявка.playerCountry,
                 levelName: заявка.levelName,
                 progress: заявка.progress,
-                url: заявка.videoUrl,
-                // Присланный рекорд — это запись о прохождении, а не эфир
+                url: ссылка,
+
+                // Площадки переносим как есть — с этого момента статус
+                // «в эфире» начнёт обновляться сам, без участия человека
+                twitchLogin: заявка.twitchLogin,
+                youtubeChannelId: заявка.youtubeChannelId,
+
+                // Пока не проверили площадку — считаем, что не в эфире.
+                // Первое же обновление поставит настоящее значение.
                 isLive: false,
             },
         }),

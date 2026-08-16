@@ -113,11 +113,25 @@ model Stream {
   @@index([isLive, sortOrder])
 }
 
-/// Статус заявки на рекорд.
+/// Статус заявки.
 enum SubmissionStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+/// Про что заявка.
+///
+/// RECORD   — «я прошёл уровень на столько-то, вот видео»
+/// STREAMER — «я вещаю там-то, добавьте меня в список стримов»
+///
+/// Одна таблица на оба вида, а не две почти одинаковые. Поля различаются
+/// на три штуки, а модерация, защита от спама и список в админке — общие.
+/// Две таблицы означали бы два раздела, две формы и два места, где можно
+/// забыть проверку прав.
+enum SubmissionKind {
+  RECORD
+  STREAMER
 }
 
 /// Заявка на рекорд, присланная посетителем сайта.
@@ -132,13 +146,26 @@ enum SubmissionStatus {
 model Submission {
   id String @id @default(uuid(7))
 
+  kind SubmissionKind @default(RECORD)
+
   playerName String
   /// Страна в формате Global Demonlist: 'United-States', 'Unknown'
   playerCountry String @default("Unknown")
   levelName     String
   /// Процент прохождения, 0–100
-  progress  Int
-  videoUrl  String
+  progress Int
+
+  /// Ссылка на видео прохождения.
+  ///
+  /// Обязательна для заявки на рекорд — без неё проверить нечего.
+  /// Для стримера необязательна: он показывает прогресс в эфире,
+  /// записи может и не быть.
+  videoUrl String?
+
+  /// Куда вещает стример. Заполняется только для kind = STREAMER.
+  twitchLogin      String?
+  youtubeChannelId String?
+
   /// Что человек хочет добавить от себя
   comment String?
   /// Как с ним связаться: Telegram, Discord, почта. Необязательно

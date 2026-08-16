@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { Shell, PageHeading } from '@/src/components/Shell';
 import { SubmitForm } from '@/src/components/SubmitForm';
 
@@ -19,6 +20,13 @@ export default function SubmitPage() {
             />
 
             <div className="p-4 sm:p-6">
+                <div className="mb-6 border-l-4 border-orange-300 bg-orange-50 px-4 py-3 text-sm text-gray-700">
+                    Вещаете прохождение и хотите попасть в список стримов?{' '}
+                    <Link href="/submit/stream" className="font-bold text-orange-700 underline">
+                        Другая форма
+                    </Link>
+                </div>
+
                 <SubmitForm />
             </div>
         </Shell>

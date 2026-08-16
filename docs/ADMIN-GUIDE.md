@@ -256,6 +256,30 @@ if (!уровни.some((l) => l.id === данные.levelId)) {
 `getCommunityRanking()` из `@/src/lib/community` — она уже склеивает
 позиции из базы с данными уровней из API.
 
+**Поле уровня — готовый `LevelPicker`.** Вводить id руками невозможно,
+его никто не помнит. Компонент даёт поиск по названию и сам кладёт id
+в скрытое поле `levelId`:
+
+```tsx
+import { getLevels } from '@/src/lib/demonlist';
+import { LevelPicker } from '@/src/components/admin/LevelPicker';
+
+const уровни = (await getLevels()).map((l) => ({
+    id: l.id,
+    name: l.name,
+    position: l.position,
+    builder: l.builder,
+}));
+
+<LevelPicker уровни={уровни} />;
+```
+
+При правке передай вторым свойством уже выбранный уровень:
+`<LevelPicker уровни={уровни} выбранный={текущий} />`.
+
+Проверку из абзаца выше это НЕ отменяет. Компонент — удобство, а не защита:
+серверное действие вызывается по сети напрямую, мимо любой формы.
+
 ---
 
 ## Проверить, когда доделаешь

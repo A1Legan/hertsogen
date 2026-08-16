@@ -241,6 +241,43 @@ export async function getTopPlayers(count = 100): Promise<Player[]> {
     return [...players.values()].sort((a, b) => a.rank - b.rank).slice(0, count);
 }
 
+/**
+ * Поиск игрока по нику.
+ *
+ * Ищет САМ API — у /leaderboard/user/list есть параметр search. Это важно:
+ * своими силами мы бы искали только среди загруженной тысячи, а всего
+ * аккаунтов ~12726. Игрок с местом 5000 просто не нашёлся бы, и понять
+ * почему было бы невозможно — ошибки-то нет, список пустой и всё.
+ *
+ * Совпадение по куску ника в любом месте и без учёта регистра:
+ * 'ryan' находит и 'Ryanpecausa', и 'xteryan'. Проверено на живом API.
+ */
+export async function searchPlayers(query: string, limit = 100): Promise<Player[]> {
+    const запрос = query.trim();
+    if (!запрос) return [];
+
+    const найденные: Player[] = [];
+    let offset = 0;
+
+    while (найденные.length < limit) {
+        const json = await request(
+            `/leaderboard/user/list?limit=${PAGE_SIZE}&offset=${offset}` +
+                `&search=${encodeURIComponent(запрос)}`,
+        );
+        const parsed = UserListResponse.parse(json);
+        const users = parsed.data.users;
+
+        if (users.length === 0) break; // совпадения кончились
+
+        найденные.push(...users.map(toPlayer));
+        offset += PAGE_SIZE;
+    }
+
+    // Сортируем сами: API отдаёт совпадения в своём порядке,
+    // а человеку привычнее видеть сильных игроков сверху
+    return найденные.sort((a, b) => a.rank - b.rank).slice(0, limit);
+}
+
 /* ------------------------------------------------------------------ *
  * ПРОФИЛЬ ИГРОКА  —  /user/get?id=
  *
