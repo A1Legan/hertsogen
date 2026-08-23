@@ -5,6 +5,7 @@ import { Button } from '@/src/components/ui/button';
 import { Badge } from '@/src/components/ui/badge';
 import { Card, CardContent } from '@/src/components/ui/card';
 import { Flag } from '@/src/components/Flag';
+import { DeleteButton } from '@/src/components/admin/DeleteButton';
 import { читаемаяСтрана } from '@/src/lib/countries';
 import { одобритьЗаявку, отклонитьЗаявку, удалитьЗаявку } from './actions';
 
@@ -181,9 +182,24 @@ export default async function AdminSubmissionsPage() {
                                 <span className="min-w-0 flex-1 truncate text-sm">
                                     {з.playerName} — {з.levelName} {з.progress}%
                                 </span>
-                                <span className="text-xs text-muted-foreground">
+                                <span className="hidden text-xs text-muted-foreground sm:inline">
                                     {з.reviewedBy}
                                 </span>
+
+                                {/*
+                                    Удаление разобранной заявки нужно, когда
+                                    игрока приходится убирать с сайта: сначала
+                                    удаляется стрим, потом эта запись, чтобы
+                                    от него не осталось следов и в истории.
+                                */}
+                                <DeleteButton
+                                    название={`${з.playerName} — ${з.levelName}`}
+                                    что="Заявка"
+                                    action={async () => {
+                                        'use server';
+                                        await удалитьЗаявку(з.id);
+                                    }}
+                                />
                             </div>
                         ))}
                     </Card>
