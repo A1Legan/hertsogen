@@ -71,8 +71,14 @@ export function LevelCard({
                 <div className="flex flex-shrink-0 items-center gap-3 pl-11 sm:pl-0">
                     <div className="text-left sm:text-right">
                         <div className="text-xl font-bold text-orange-600 sm:text-2xl">
-                            {вРасширенном ? '—' : `${level.points.toFixed(2)} pts`}
+                            {level.points.toFixed(2)} pts
                         </div>
+                        {/*
+                            Очки показываем всегда. Расширенный список — это
+                            отдельный раздел, а не «уровни без наград»:
+                            #673 даёт 0.74, #1153 — 0.44, #1808 — 0.05.
+                            Проверено по ответу API, там нет ни одного нуля.
+                        */}
                         <div className="text-[10px] font-bold uppercase text-gray-400">
                             {вРасширенном ? 'Extended list' : 'Очки'}
                         </div>
@@ -124,7 +130,7 @@ export function LevelCard({
                     </p>
                     <div className="text-xl font-bold text-gray-800">{level.requirement}%</div>
                     <div className="text-xs font-bold text-gray-500">
-                        {вРасширенном ? 'EL' : `${(level.points * 0.25).toFixed(2)} pts`}
+                        {(level.points * 0.25).toFixed(2)} pts
                     </div>
                 </div>
             </div>

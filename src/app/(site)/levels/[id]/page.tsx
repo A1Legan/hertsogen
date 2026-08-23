@@ -92,7 +92,7 @@ export default async function LevelPage({
                     <StatBox
                         label="Очки"
                         hint={вРасширенном ? ПОЯСНЕНИЯ.extended : ПОЯСНЕНИЯ.points}
-                        value={вРасширенном ? '—' : level.points.toFixed(2)}
+                        value={level.points.toFixed(2)}
                     />
                     <StatBox
                         label="Нужно пройти"
