@@ -55,3 +55,6 @@ country-map.json
 /.claude
 /.windsurf
 /skills-lock.json
+
+# загруженные картинки — живут только на сервере
+/uploads/

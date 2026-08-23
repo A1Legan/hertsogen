@@ -26,12 +26,11 @@ export default async function NewsPage() {
                         className="animate-card-entry mb-6 overflow-hidden border border-gray-200 bg-white shadow-sm"
                     >
                         {n.image && (
-                            // Обычный img, а не next/image: адрес картинки
-                            // теперь во внешнем хранилище, и его домен задаётся
-                            // переменной окружения. next/image требует
-                            // перечислить разрешённые домены в next.config.ts
-                            // на этапе сборки — при смене хранилища пришлось бы
-                            // править конфиг и пересобирать.
+                            // Обычный img, а не next/image. Картинки лежат
+                            // на нашем же диске и отдаются обработчиком
+                            // /uploads. Оптимизация next/image тут только
+                            // добавила бы работы серверу, у которого всего
+                            // гигабайт памяти, — а картинок единицы.
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                                 src={n.image}
