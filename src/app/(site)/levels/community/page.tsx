@@ -9,8 +9,6 @@ export const metadata: Metadata = {
     title: 'Рейтинг Hertzogen и сообщества',
     description: 'Собственный список сложности от Hertzogen и сообщества.',
 };
-
-/** Наш список меняется вручную, обновляем чаще внешнего. */
 export const revalidate = 600;
 
 export default async function CommunityRatingPage() {
@@ -38,12 +36,6 @@ export default async function CommunityRatingPage() {
                 ) : (
                     ranking.map((item, index) => (
                         <div key={item.level.id}>
-                            {/*
-                                Позиция, требование и очки внутри item.level
-                                уже наши — их подменил getCommunityRanking().
-                                Карточка не знает, из какого рейтинга пришли
-                                числа, и знать не должна.
-                            */}
                             <LevelCard level={item.level} players={players} index={index} />
 
                             {item.note && (

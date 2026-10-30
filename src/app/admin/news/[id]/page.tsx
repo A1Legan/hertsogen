@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/src/components/ui/card';
 import { buttonVariants } from '@/src/components/ui/button';
 import { cn } from '@/src/lib/utils';
 import { NewsForm } from '@/src/components/admin/NewsForm';
-import { обновитьНовость } from '../actions';
+import { updateNews } from '../actions';
 
 export const metadata: Metadata = { title: 'Правка новости', robots: { index: false } };
 export const dynamic = 'force-dynamic';
@@ -19,8 +19,8 @@ export default async function EditNewsPage({
 }) {
     const { id } = await params;
 
-    const новость = await prisma.news.findUnique({ where: { id } });
-    if (!новость) notFound();
+    const news = await prisma.news.findUnique({ where: { id } });
+    if (!news) notFound();
 
     return (
         <div className="mx-auto max-w-2xl">
@@ -35,22 +35,19 @@ export default async function EditNewsPage({
                 Новости
             </Link>
 
-            <h1 className="mb-6 truncate text-2xl font-bold tracking-tight">{новость.title}</h1>
+            <h1 className="mb-6 truncate text-2xl font-bold tracking-tight">{news.title}</h1>
 
             <Card>
                 <CardContent>
                     <NewsForm
-                        // id подставляем здесь — форме о нём знать незачем,
-                        // и в скрытом поле он не поедет, где его можно подменить
-                        action={обновитьНовость.bind(null, id)}
-                        новость={{
-                            title: новость.title,
-                            category: новость.category,
-                            // input type="date" понимает только ГГГГ-ММ-ДД
-                            date: новость.date.toISOString().slice(0, 10),
-                            text: новость.text,
-                            image: новость.image,
-                            published: новость.published,
+                        action={updateNews.bind(null, id)}
+                        news={{
+                            title: news.title,
+                            category: news.category,
+                            date: news.date.toISOString().slice(0, 10),
+                            text: news.text,
+                            image: news.image,
+                            published: news.published,
                         }}
                     />
                 </CardContent>

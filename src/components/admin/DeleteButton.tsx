@@ -15,30 +15,20 @@ import {
     DialogTrigger,
 } from '@/src/components/ui/dialog';
 
-/**
- * Кнопка удаления с подтверждением.
- *
- * Клиентский компонент — иначе нечем открыть окно и показать уведомление.
- * Но само удаление всё равно происходит на сервере: сюда передаётся
- * серверное действие, а здесь только вопрос «точно?».
- *
- * Важно помнить: это окно — удобство, а не защита. Проверка прав живёт
- * в самом действии, и обойти её, минуя эту кнопку, нельзя.
- */
 export function DeleteButton({
     action,
-    название,
-    что = 'Запись',
+    name,
+    what = 'Запись',
 }: {
     action: () => Promise<void>;
-    название: string;
-    что?: string;
+    name: string;
+    what?: string;
 }) {
-    const [открыто, setОткрыто] = useState(false);
-    const [занят, startTransition] = useTransition();
+    const [open, setOpen] = useState(false);
+    const [closed, startTransition] = useTransition();
 
     return (
-        <Dialog open={открыто} onOpenChange={setОткрыто}>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger
                 render={
                     <Button variant="ghost" size="icon" aria-label="Удалить">
@@ -51,7 +41,7 @@ export function DeleteButton({
                 <DialogHeader>
                     <DialogTitle>Удалить?</DialogTitle>
                     <DialogDescription>
-                        {что} «{название}» удалится навсегда. Отменить это будет нельзя.
+                        {what} «{name}» удалится навсегда. Отменить это будет нельзя.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -59,16 +49,16 @@ export function DeleteButton({
                     <DialogClose render={<Button variant="outline">Отмена</Button>} />
                     <Button
                         variant="destructive"
-                        disabled={занят}
+                        disabled={closed}
                         onClick={() =>
                             startTransition(async () => {
                                 await action();
-                                setОткрыто(false);
+                                setOpen(false);
                                 toast.success('Удалено');
                             })
                         }
                     >
-                        {занят ? 'Удаляю…' : 'Удалить'}
+                        {closed ? 'Удаляю…' : 'Удалить'}
                     </Button>
                 </DialogFooter>
             </DialogContent>

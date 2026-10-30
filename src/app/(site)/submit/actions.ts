@@ -3,28 +3,12 @@
 import { z } from 'zod';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/src/lib/prisma';
-import { хешАдреса, проверитьЗащиту } from '@/src/lib/submissions';
-import { НАЗВАНИЯ_СТРАН } from '@/src/lib/countries';
+import { hashAddress, checkDefence } from '@/src/lib/submissions';
+import { COUNTRY_NAME } from '@/src/lib/countries';
 
-/**
- * Приём заявки на рекорд.
- *
- * Это ПУБЛИЧНОЕ действие — единственное в проекте, которое доступно
- * без входа. Поэтому проверок здесь больше, чем в админке:
- *
- *  — все поля с жёсткими границами длины
- *  — ссылка обязана быть на YouTube, а не «куда угодно»
- *  — страна только из известного списка
- *  — защита от автоматических отправок
- *
- * Данные попадают в таблицу Submission со статусом PENDING. На публичные
- * страницы оттуда не попадает ничего: они смотрят в Stream, а туда запись
- * переносит модератор вручную.
- */
+const LINK_ON_VIDEO = /^https:\/\/(www\.)?(youtube\.com\/(watch\?v=|live\/|shorts\/)|youtu\.be\/)[\w-]{11}/;
 
-const ССЫЛКА_НА_ВИДЕО = /^https:\/\/(www\.)?(youtube\.com\/(watch\?v=|live\/|shorts\/)|youtu\.be\/)[\w-]{11}/;
-
-const ФормаЗаявки = z.object({
+const FormMessage = z.object({
     playerName: z
         .string()
         .trim()
@@ -34,14 +18,14 @@ const ФормаЗаявки = z.object({
     playerCountry: z
         .string()
         .trim()
-        // Страна должна быть из нашего списка, иначе флаг не найдётся.
-        // Заодно это отсекает попытку записать в поле произвольный текст.
-        .refine((с) => с === 'Unknown' || НАЗВАНИЯ_СТРАН.includes(с), 'Неизвестная страна'),
+        .refine((c) => c === 'Unknown' || COUNTRY_NAME.includes(c), 'Неизвестная страна'),
+
+    levelId: z.coerce.number({ message: 'Выберите уровень из подсказок' }).int().positive(),
 
     levelName: z
         .string()
         .trim()
-        .min(1, 'Укажите название уровня')
+        .min(1, 'Выберите уровень из подсказок')
         .max(120, 'Название слишком длинное'),
 
     progress: z.coerce
@@ -54,22 +38,21 @@ const ФормаЗаявки = z.object({
         .string()
         .trim()
         .max(200)
-        .regex(ССЫЛКА_НА_ВИДЕО, 'Нужна ссылка на видео с YouTube'),
+        .regex(LINK_ON_VIDEO, 'Нужна ссылка на видео с YouTube'),
 
     comment: z.string().trim().max(500, 'Комментарий слишком длинный').nullable(),
     contact: z.string().trim().max(120).nullable(),
 });
 
-/** Что вернуть в форму, если что-то не так. */
-export type СостояниеФормы = { ошибка?: string } | undefined;
+export type FormStatus = { error?: string } | undefined;
 
-export async function отправитьЗаявку(
-    _прошлое: СостояниеФормы,
+export async function sendMessage(
+    _before: FormStatus,
     form: FormData,
-): Promise<СостояниеФормы> {
-    const защита = await проверитьЗащиту(form);
-    if (!защита.пропустить) {
-        return { ошибка: защита.причина };
+): Promise<FormStatus> {
+    const защита = await checkDefence(form);
+    if (!защита.skip) {
+        return { error: защита.reason };
     }
 
     const пусто = (v: FormDataEntryValue | null) => {
@@ -77,9 +60,10 @@ export async function отправитьЗаявку(
         return s === '' ? null : s;
     };
 
-    const разбор = ФормаЗаявки.safeParse({
+    const check = FormMessage.safeParse({
         playerName: form.get('playerName'),
         playerCountry: form.get('playerCountry') ?? 'Unknown',
+        levelId: form.get('levelId'),
         levelName: form.get('levelName'),
         progress: form.get('progress'),
         videoUrl: form.get('videoUrl'),
@@ -87,14 +71,12 @@ export async function отправитьЗаявку(
         contact: пусто(form.get('contact')),
     });
 
-    if (!разбор.success) {
-        // Первое понятное сообщение, а не весь список: человеку проще
-        // исправлять по одному, чем читать простыню
-        return { ошибка: разбор.error.issues[0]?.message ?? 'Проверьте поля' };
+    if (!check.success) {
+        return { error: check.error.issues[0]?.message ?? 'Проверьте поля' };
     }
 
     await prisma.submission.create({
-        data: { ...разбор.data, ipHash: await хешАдреса() },
+        data: { ...check.data, ipHash: await hashAddress() },
     });
 
     redirect('/submit/done');

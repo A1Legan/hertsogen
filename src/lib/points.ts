@@ -1,20 +1,4 @@
-/**
- * Очки за позицию в списке.
- *
- * Это НЕ формула — у Global Demonlist здесь таблица, составленная руками.
- * Видно по шагу: с #1 по #8 он −40, потом дважды −60, потом −20. Никакая
- * прогрессия так не выглядит, поэтому и хранится списком значений.
- *
- * Таблица снята с настоящего ответа api.demonlist.org (все 1808 уровней,
- * файл src/server/sample-levels.json). Если Global когда-нибудь пересмотрит
- * шкалу, эти числа придётся обновить — способа вычислить их нет.
- *
- * Зачем нам своя копия: в собственном рейтинге уровень стоит на НАШЕЙ
- * позиции, и очки должны считаться по ней. Брать очки, которые чужой
- * список выдал этому уровню, бессмысленно — они про чужой порядок.
- */
-
-const ОЧКИ_ЗА_ПОЗИЦИЮ: readonly number[] = [
+const POINT_PER_POSITION: readonly number[] = [
     // #1–#10
     1000, 960, 920, 880, 840, 800, 760, 720, 660, 600,
     // #11–#20
@@ -47,14 +31,10 @@ const ОЧКИ_ЗА_ПОЗИЦИЮ: readonly number[] = [
     14, 13, 12, 11, 10, 9, 8, 7, 6, 5,
 ];
 
-/** Сколько очков даёт позиция. null — ниже основного списка (Extended). */
-export function очкиЗаПозицию(position: number): number | null {
+export function pointsForPos(position: number): number | null {
     if (position < 1) return null;
-    if (position > ОЧКИ_ЗА_ПОЗИЦИЮ.length) return null;
+    if (position > POINT_PER_POSITION.length) return null;
 
-    // В массиве отсчёт с нуля, а позиции с единицы
-    return ОЧКИ_ЗА_ПОЗИЦИЮ[position - 1];
+    return POINT_PER_POSITION[position - 1];
 }
-
-/** Размер основного списка: дальше очки не начисляются. */
-export const РАЗМЕР_ОСНОВНОГО_СПИСКА = ОЧКИ_ЗА_ПОЗИЦИЮ.length;
+export const SIZE_MAIN_LIST = POINT_PER_POSITION.length;

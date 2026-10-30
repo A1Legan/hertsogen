@@ -2,31 +2,23 @@
 
 import { useActionState } from 'react';
 import {
-    отправитьЗаявкуСтримера,
-    type СостояниеФормы,
+    sendStreamerMessage,
+    type FormStatus,
 } from '@/src/app/(site)/submit/stream/actions';
-import { НАЗВАНИЯ_СТРАН, читаемаяСтрана } from '@/src/lib/countries';
-
-/**
- * Заявка стримера.
- *
- * Отличается от заявки на рекорд смыслом: там «я прошёл, вот запись»,
- * здесь «я вещаю, следите за мной». Поэтому видео необязательно, зато
- * обязательна площадка и способ связи — модератору надо будет прислать
- * человеку личную ссылку для обновления процента.
- */
+import { COUNTRY_NAME, haveCountry } from '@/src/lib/countries';
+import { LevelPicker } from './LevelPicker';
 
 const ПОЛЕ =
     'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none';
 
 export function StreamerForm() {
-    const [состояние, отправить, вПроцессе] = useActionState<СостояниеФормы, FormData>(
-        отправитьЗаявкуСтримера,
+    const [status, send, inProgress] = useActionState<FormStatus, FormData>(
+        sendStreamerMessage,
         undefined,
     );
 
     return (
-        <form action={отправить} className="space-y-5">
+        <form action={send} className="space-y-5">
             <input type="hidden" name="открытоВ" value={Date.now()} />
 
             <div className="absolute left-[-9999px]" aria-hidden="true">
@@ -34,9 +26,9 @@ export function StreamerForm() {
                 <input id="website-s" name="website" type="text" tabIndex={-1} autoComplete="off" />
             </div>
 
-            {состояние?.ошибка && (
+            {status?.error && (
                 <p className="border-l-4 border-red-500 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-                    {состояние.ошибка}
+                    {status.error}
                 </p>
             )}
 
@@ -54,9 +46,9 @@ export function StreamerForm() {
                     </span>
                     <select name="playerCountry" defaultValue="Unknown" className={ПОЛЕ}>
                         <option value="Unknown">— не указывать —</option>
-                        {НАЗВАНИЯ_СТРАН.map((с) => (
-                            <option key={с} value={с}>
-                                {читаемаяСтрана(с)}
+                        {COUNTRY_NAME.map((c) => (
+                            <option key={c} value={c}>
+                                {haveCountry(c)}
                             </option>
                         ))}
                     </select>
@@ -92,18 +84,15 @@ export function StreamerForm() {
             </div>
 
             <div className="grid gap-5 sm:grid-cols-2">
-                <label className="block">
-                    <span className="mb-1 block text-xs font-bold uppercase text-gray-500">
+                <div className="block">
+                    <label
+                        htmlFor="поиск-уровня"
+                        className="mb-1 block text-xs font-bold uppercase text-gray-500"
+                    >
                         Какой уровень проходите
-                    </span>
-                    <input
-                        name="levelName"
-                        required
-                        maxLength={120}
-                        placeholder="Society"
-                        className={ПОЛЕ}
-                    />
-                </label>
+                    </label>
+                    <LevelPicker fieldClass={ПОЛЕ} />
+                </div>
 
                 <label className="block">
                     <span className="mb-1 block text-xs font-bold uppercase text-gray-500">
@@ -151,10 +140,10 @@ export function StreamerForm() {
             <div className="border-t border-gray-200 pt-4">
                 <button
                     type="submit"
-                    disabled={вПроцессе}
+                    disabled={inProgress}
                     className="rounded bg-orange-600 px-6 py-3 font-bold text-white transition-colors hover:bg-orange-700 disabled:opacity-50"
                 >
-                    {вПроцессе ? 'Отправляю…' : 'Отправить заявку'}
+                    {inProgress ? 'Отправляю…' : 'Отправить заявку'}
                 </button>
             </div>
         </form>

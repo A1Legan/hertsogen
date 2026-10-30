@@ -6,17 +6,17 @@ import { Badge } from '@/src/components/ui/badge';
 import { Card, CardContent } from '@/src/components/ui/card';
 import { Flag } from '@/src/components/Flag';
 import { DeleteButton } from '@/src/components/admin/DeleteButton';
-import { читаемаяСтрана } from '@/src/lib/countries';
-import { одобритьЗаявку, отклонитьЗаявку, удалитьЗаявку } from './actions';
+import { haveCountry } from '@/src/lib/countries';
+import { allowNessage, declineMessage, deleteMessage } from './actions';
 
 export const metadata: Metadata = { title: 'Заявки', robots: { index: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function AdminSubmissionsPage() {
-    const [ждут, рассмотренные] = await Promise.all([
+    const [wait, checked] = await Promise.all([
         prisma.submission.findMany({
             where: { status: 'PENDING' },
-            orderBy: { createdAt: 'asc' }, // самые старые первыми: их дольше всего ждут
+            orderBy: { createdAt: 'asc' },
         }),
         prisma.submission.findMany({
             where: { status: { not: 'PENDING' } },
@@ -34,41 +34,41 @@ export default async function AdminSubmissionsPage() {
                 </p>
             </div>
 
-            {ждут.length === 0 ? (
+            {wait.length === 0 ? (
                 <Card className="mb-8 p-12 text-center">
                     <p className="text-muted-foreground">Новых заявок нет</p>
                 </Card>
             ) : (
                 <div className="mb-8 space-y-3">
-                    {ждут.map((з) => (
-                        <Card key={з.id}>
+                    {wait.map((z) => (
+                        <Card key={z.id}>
                             <CardContent className="space-y-4">
                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                     <div>
                                         <div className="flex items-center gap-2 text-lg font-bold">
-                                            <Flag country={з.playerCountry} />
-                                            {з.playerName}
-                                            {з.kind === 'STREAMER' ? (
+                                            <Flag country={z.playerCountry} />
+                                            {z.playerName}
+                                            {z.kind === 'STREAMER' ? (
                                                 <Badge variant="secondary">стример</Badge>
                                             ) : (
                                                 <Badge variant="outline">рекорд</Badge>
                                             )}
                                         </div>
                                         <p className="text-sm text-muted-foreground">
-                                            {з.levelName} — {з.progress}%
-                                            {з.playerCountry !== 'Unknown' &&
-                                                ` • ${читаемаяСтрана(з.playerCountry)}`}
+                                            {z.levelName} — {z.progress}%
+                                            {z.playerCountry !== 'Unknown' &&
+                                                ` • ${haveCountry(z.playerCountry)}`}
                                         </p>
                                     </div>
                                     <span className="text-xs text-muted-foreground">
-                                        {з.createdAt.toLocaleString('ru')}
+                                        {z.createdAt.toLocaleString('ru')}
                                     </span>
                                 </div>
 
                                 <div className="flex flex-wrap gap-4">
-                                    {з.videoUrl && (
+                                    {z.videoUrl && (
                                         <a
-                                            href={з.videoUrl}
+                                            href={z.videoUrl}
                                             target="_blank"
                                             rel="noreferrer"
                                             className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline"
@@ -78,21 +78,21 @@ export default async function AdminSubmissionsPage() {
                                         </a>
                                     )}
 
-                                    {з.twitchLogin && (
+                                    {z.twitchLogin && (
                                         <a
-                                            href={`https://www.twitch.tv/${з.twitchLogin}`}
+                                            href={`https://www.twitch.tv/${z.twitchLogin}`}
                                             target="_blank"
                                             rel="noreferrer"
                                             className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline"
                                         >
                                             <ExternalLink className="size-3.5" />
-                                            Twitch: {з.twitchLogin}
+                                            Twitch: {z.twitchLogin}
                                         </a>
                                     )}
 
-                                    {з.youtubeChannelId && (
+                                    {z.youtubeChannelId && (
                                         <a
-                                            href={`https://www.youtube.com/channel/${з.youtubeChannelId}`}
+                                            href={`https://www.youtube.com/channel/${z.youtubeChannelId}`}
                                             target="_blank"
                                             rel="noreferrer"
                                             className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline"
@@ -103,15 +103,15 @@ export default async function AdminSubmissionsPage() {
                                     )}
                                 </div>
 
-                                {з.comment && (
+                                {z.comment && (
                                     <p className="rounded border bg-muted/40 p-3 text-sm whitespace-pre-line">
-                                        {з.comment}
+                                        {z.comment}
                                     </p>
                                 )}
 
-                                {з.contact && (
+                                {z.contact && (
                                     <p className="text-xs text-muted-foreground">
-                                        Связь: <span className="font-medium">{з.contact}</span>
+                                        Связь: <span className="font-medium">{z.contact}</span>
                                     </p>
                                 )}
 
@@ -119,7 +119,7 @@ export default async function AdminSubmissionsPage() {
                                     <form
                                         action={async () => {
                                             'use server';
-                                            await одобритьЗаявку(з.id);
+                                            await allowNessage(z.id);
                                         }}
                                     >
                                         <Button type="submit" size="sm">
@@ -131,7 +131,7 @@ export default async function AdminSubmissionsPage() {
                                     <form
                                         action={async () => {
                                             'use server';
-                                            await отклонитьЗаявку(з.id);
+                                            await declineMessage(z.id);
                                         }}
                                     >
                                         <Button type="submit" size="sm" variant="outline">
@@ -143,7 +143,7 @@ export default async function AdminSubmissionsPage() {
                                     <form
                                         action={async () => {
                                             'use server';
-                                            await удалитьЗаявку(з.id);
+                                            await deleteMessage(z.id);
                                         }}
                                         className="ml-auto"
                                     >
@@ -163,27 +163,27 @@ export default async function AdminSubmissionsPage() {
                 </div>
             )}
 
-            {рассмотренные.length > 0 && (
+            {checked.length > 0 && (
                 <>
                     <h2 className="mb-3 text-sm font-bold uppercase text-muted-foreground">
                         Уже рассмотренные
                     </h2>
                     <Card className="p-0">
-                        {рассмотренные.map((з) => (
+                        {checked.map((z) => (
                             <div
-                                key={з.id}
+                                key={z.id}
                                 className="flex items-center gap-3 border-b p-3 last:border-b-0"
                             >
-                                {з.status === 'APPROVED' ? (
+                                {z.status === 'APPROVED' ? (
                                     <Badge variant="secondary">одобрено</Badge>
                                 ) : (
                                     <Badge variant="outline">отклонено</Badge>
                                 )}
                                 <span className="min-w-0 flex-1 truncate text-sm">
-                                    {з.playerName} — {з.levelName} {з.progress}%
+                                    {z.playerName} — {z.levelName} {z.progress}%
                                 </span>
                                 <span className="hidden text-xs text-muted-foreground sm:inline">
-                                    {з.reviewedBy}
+                                    {z.reviewedBy}
                                 </span>
 
                                 {/*
@@ -193,11 +193,11 @@ export default async function AdminSubmissionsPage() {
                                     от него не осталось следов и в истории.
                                 */}
                                 <DeleteButton
-                                    название={`${з.playerName} — ${з.levelName}`}
-                                    что="Заявка"
+                                    name={`${z.playerName} — ${z.levelName}`}
+                                    what="Заявка"
                                     action={async () => {
                                         'use server';
-                                        await удалитьЗаявку(з.id);
+                                        await deleteMessage(z.id);
                                     }}
                                 />
                             </div>

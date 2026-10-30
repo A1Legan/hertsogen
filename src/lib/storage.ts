@@ -1,163 +1,84 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
+const FOLDER = process.env.UPLOAD_DIR ?? path.join(process.cwd(), 'uploads');
 
-/**
- * Хранилище картинок — файлы на диске сервера.
- *
- * Раньше здесь был S3, потому что сайт жил на Vercel: там файловая система
- * только для чтения и живёт до конца запроса. Записанный файл исчезал,
- * а на соседнем сервере его не было вовсе.
- *
- * Теперь у нас свой сервер и свой диск, поэтому городить хранилище
- * с ключами доступа незачем — кладём файлы рядом с сайтом.
- *
- * ВАЖНО ПРО МЕСТО. Папка лежит ВНЕ репозитория и вне сборки. Иначе
- * `git pull` и пересборка стирали бы всё загруженное — причём молча,
- * и заметил бы ты это через неделю по пустым новостям.
- */
+const PREFICS = '/uploads';
 
-/**
- * Куда складываем.
- *
- * По умолчанию — папка uploads рядом с проектом. На сервере служба
- * запускается из /var/www/hcr, значит файлы лягут в /var/www/hcr/uploads.
- * Переопределяется переменной UPLOAD_DIR, если однажды понадобится
- * вынести их на отдельный диск.
- */
-const ПАПКА = process.env.UPLOAD_DIR ?? path.join(process.cwd(), 'uploads');
-
-/** Начало адреса, по которому картинки видны на сайте. */
-const ПРЕФИКС = '/uploads';
-
-/**
- * Настроено ли хранилище.
- *
- * Диск есть всегда, так что да. Функция осталась, потому что её зовут
- * действия админки — раньше она отвечала «ключи S3 не заданы».
- */
-export function хранилищеНастроено(): boolean {
+export function dataMake(): boolean {
     return true;
 }
-
-/* ------------------------------------------------------------------ *
- * ПРОВЕРКА ФАЙЛА
- * ------------------------------------------------------------------ */
-
-const РАЗРЕШЁННЫЕ_ТИПЫ: Record<string, string> = {
+const ALLOWED_TYPES: Record<string, string> = {
     'image/jpeg': 'jpg',
     'image/png': 'png',
     'image/webp': 'webp',
     'image/gif': 'gif',
 };
 
-const МАКСИМУМ_БАЙТ = 5 * 1024 * 1024; // 5 МБ
+const MAX_BYTES = 5 * 1024 * 1024;
 
-export type РезультатПроверки = { ок: true; расширение: string } | { ок: false; причина: string };
+export type resultCheck = { ok: true; extension: string } | { ok: false; reason: string };
 
-/**
- * Проверка загружаемого файла.
- *
- * Заметь: тип файла мы берём из того, что прислал браузер, а это можно
- * подделать. Для админки, куда заходят два человека по белому списку почт,
- * этого достаточно — соразмерно риску.
- *
- * Если когда-нибудь загрузку откроют посторонним (например, к заявкам
- * на рекорд), проверку надо усилить: читать первые байты файла и сверять
- * с настоящей сигнатурой формата. Расширение и заголовок там доверия
- * не заслуживают.
- */
-export function проверитьФайл(file: File): РезультатПроверки {
+export function checkFile(file: File): resultCheck {
     if (file.size === 0) {
-        return { ок: false, причина: 'Файл пустой' };
+        return { ok: false, reason: 'Файл пустой' };
     }
 
-    if (file.size > МАКСИМУМ_БАЙТ) {
-        const мб = (file.size / 1024 / 1024).toFixed(1);
-        return { ок: false, причина: `Файл ${мб} МБ, а можно не больше 5 МБ` };
+    if (file.size > MAX_BYTES) {
+        const mb = (file.size / 1024 / 1024).toFixed(1);
+        return { ok: false, reason: `Файл ${mb} МБ, а можно не больше 5 МБ` };
     }
 
-    const расширение = РАЗРЕШЁННЫЕ_ТИПЫ[file.type];
-    if (!расширение) {
-        return { ок: false, причина: 'Годятся только картинки: JPG, PNG, WebP или GIF' };
+    const extension = ALLOWED_TYPES[file.type];
+    if (!extension) {
+        return { ok: false, reason: 'Годятся только картинки: JPG, PNG, WebP или GIF' };
     }
 
-    return { ок: true, расширение };
+    return { ok: true, extension: extension };
 }
 
-/* ------------------------------------------------------------------ *
- * ЗАГРУЗКА И УДАЛЕНИЕ
- * ------------------------------------------------------------------ */
+export async function uploadPicture(file: File, folder = 'news'): Promise<string> {
+    const check = checkFile(file);
+    if (!check.ok) throw new Error(check.reason);
 
-/**
- * Кладёт файл на диск и возвращает адрес, по которому он доступен.
- *
- * Имя придумываем сами, а не берём у пользователя: в присланном имени
- * может оказаться что угодно — путь с ../, кириллица, пробелы, совпадение
- * с уже лежащим файлом. Случайное имя снимает все эти вопросы разом.
- */
-export async function загрузитьКартинку(file: File, папка = 'news'): Promise<string> {
-    const проверка = проверитьФайл(file);
-    if (!проверка.ок) throw new Error(проверка.причина);
+    const имя = `${randomUUID()}.${check.extension}`;
+    const where = path.join(FOLDER, folder);
 
-    const имя = `${randomUUID()}.${проверка.расширение}`;
-    const куда = path.join(ПАПКА, папка);
-
-    // recursive: true не ругается, если папка уже есть
-    await mkdir(куда, { recursive: true });
+    await mkdir(where, { recursive: true });
 
     const байты = new Uint8Array(await file.arrayBuffer());
-    await writeFile(path.join(куда, имя), байты);
+    await writeFile(path.join(where, имя), байты);
 
-    return `${ПРЕФИКС}/${папка}/${имя}`;
+    return `${PREFICS}/${folder}/${имя}`;
 }
 
-/**
- * Превращает адрес картинки в путь к файлу.
- *
- * Отдельно и с проверкой, потому что тут легко открыть дыру. Если взять
- * адрес как есть и приклеить к папке, то запись вида
- * /uploads/../../etc/passwd увела бы нас куда угодно по диску.
- *
- * Поэтому: собираем полный путь, приводим к каноническому виду и
- * убеждаемся, что он остался внутри нашей папки.
- */
-function путьКФайлу(url: string): string | null {
-    if (!url.startsWith(`${ПРЕФИКС}/`)) return null;
+function pathToFile(url: string): string | null {
+    if (!url.startsWith(`${PREFICS}/`)) return null;
 
-    const относительный = url.slice(ПРЕФИКС.length + 1);
-    const полный = path.resolve(ПАПКА, относительный);
+    const relative = url.slice(PREFICS.length + 1);
+    const full = path.resolve(FOLDER, relative);
 
-    const корень = path.resolve(ПАПКА);
-    if (!полный.startsWith(корень + path.sep)) return null;
+    const root = path.resolve(FOLDER);
+    if (!full.startsWith(root + path.sep)) return null;
 
-    return полный;
+    return full;
 }
 
-/** Путь к файлу для отдачи наружу. Нужен обработчику /uploads. */
-export function путьКартинки(частиАдреса: string[]): string | null {
-    return путьКФайлу(`${ПРЕФИКС}/${частиАдреса.join('/')}`);
+export function pathPicture(addressPart: string[]): string | null {
+    return pathToFile(`${PREFICS}/${addressPart.join('/')}`);
 }
 
-/**
- * Удаляет файл по его адресу.
- *
- * Не бросает ошибку при неудаче: если старая картинка не удалилась,
- * это мусор на пару килобайт, а не повод отменять сохранение новости.
- * Пишем в лог и живём дальше.
- */
-export async function удалитьКартинку(url: string | null): Promise<void> {
+export async function deletePicture(url: string | null): Promise<void> {
     if (!url) return;
 
-    const файл = путьКФайлу(url);
-    if (!файл) return;
+    const file = pathToFile(url);
+    if (!file) return;
 
     try {
-        await unlink(файл);
+        await unlink(file);
     } catch (err) {
-        // Файла может не быть вовсе — это не беда
         if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-            console.error('Не удалось удалить картинку:', файл, err);
+            console.error('Не удалось удалить картинку:', file, err);
         }
     }
 }

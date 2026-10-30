@@ -9,8 +9,6 @@ export default async function HomePage() {
 
     return (
         <Shell>
-            {/* Блок «что это за сайт» — для человека, который зашёл впервые
-                и не понимает, куда попал. Это заявленный приоритет проекта. */}
             <section className="border-b border-gray-200 bg-gray-50 px-4 py-8 sm:px-6">
                 <h1 className="mb-3 text-2xl font-black uppercase tracking-tight text-gray-900 sm:text-3xl">
                     Демонлист, понятный новичку

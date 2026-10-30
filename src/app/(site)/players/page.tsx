@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { getTopPlayers, searchPlayers, type Player } from '@/src/lib/demonlist';
 import { Shell, PageHeading } from '@/src/components/Shell';
 import { Flag } from '@/src/components/Flag';
-import { Hint, ПОЯСНЕНИЯ } from '@/src/components/Hint';
+import { Hint, SECRET } from '@/src/components/Hint';
 import { SearchBox } from '@/src/components/SearchBox';
 import { ShowMore } from '@/src/components/ShowMore';
 
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     description: 'Топ игроков Geometry Dash по сумме очков за пройденные демоны.',
 };
 
-const ШАГ = 100;
+const STEP = 100;
 
 export default async function PlayersPage({
     searchParams,
@@ -20,23 +20,16 @@ export default async function PlayersPage({
     searchParams: Promise<{ q?: string; n?: string }>;
 }) {
     const { q, n } = await searchParams;
-    const запрос = q?.trim() ?? '';
+    const request = q?.trim() ?? '';
 
-    const сколько = Math.max(Number(n) || ШАГ, ШАГ);
+    const howMuch = Math.max(Number(n) || STEP, STEP);
 
-    /*
-     * Просим на одного больше, чем покажем.
-     *
-     * Так узнаём, есть ли продолжение, не выкачивая остальные 12 тысяч
-     * аккаунтов. Лишний приходит и тут же отбрасывается — он нужен
-     * только как ответ на вопрос «список кончился или нет».
-     */
-    const найденные: Player[] = запрос
-        ? await searchPlayers(запрос, сколько + 1)
-        : await getTopPlayers(сколько + 1);
+    const founded: Player[] = request
+        ? await searchPlayers(request, howMuch + 1)
+        : await getTopPlayers(howMuch + 1);
 
-    const естьЕщё = найденные.length > сколько;
-    const players = найденные.slice(0, сколько);
+    const haveMore = founded.length > howMuch;
+    const players = founded.slice(0, howMuch);
 
     return (
         <Shell>
@@ -46,11 +39,11 @@ export default async function PlayersPage({
             />
 
             <div className="p-4 sm:p-6">
-                <SearchBox placeholder="Ник игрока" подпись="Поиск по нику игрока" />
+                <SearchBox placeholder="Ник игрока" signature="Поиск по нику игрока" />
 
                 {players.length === 0 ? (
                     <p className="border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-600">
-                        Игрок с ником «{запрос}» не найден. Ник ищется по части слова,
+                        Игрок с ником «{request}» не найден. Ник ищется по части слова,
                         но написание должно совпадать — попробуйте покороче.
                     </p>
                 ) : (
@@ -60,7 +53,7 @@ export default async function PlayersPage({
                             <span className="flex-1">Игрок</span>
                             <span>
                                 Очки
-                                <Hint text={ПОЯСНЕНИЯ.points} />
+                                <Hint text={SECRET.points} />
                             </span>
                         </div>
 
@@ -91,10 +84,10 @@ export default async function PlayersPage({
                         ))}
 
                         <ShowMore
-                            показано={players.length}
-                            естьЕщё={естьЕщё}
-                            шаг={ШАГ}
-                            единицы="игроков"
+                            showed={players.length}
+                            more={haveMore}
+                            step={STEP}
+                            amount="игроков"
                         />
                     </>
                 )}

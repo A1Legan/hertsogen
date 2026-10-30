@@ -1,12 +1,3 @@
-// Соответствие названий стран из Global Demonlist кодам ISO 3166-1 alpha-2.
-//
-// Составлено по всем 12726 игрокам лидерборда: в данных встречается
-// 143 разных значения country. Старый COUNTRY_MAP из main.py знал
-// только 31 из них, поэтому у многих игроков флаг не показывался.
-//
-// 'Unknown' в словарь намеренно не включён - это не страна, а признак
-// того, что игрок её не указал. Таких 5088 из 12726, то есть 40%.
-
 const COUNTRY_CODES: Record<string, string> = {
   'Afghanistan': 'af',
   'Albania': 'al',
@@ -152,22 +143,12 @@ const COUNTRY_CODES: Record<string, string> = {
   'Zambia': 'zm',
 };
 
-/**
- * Название страны -> код ISO ('United-States' -> 'us').
- * Возвращает null, если страна неизвестна или не указана.
- */
 export function countryCode(name: string): string | null {
   return COUNTRY_CODES[name] ?? null;
 }
 
-/**
- * Все страны по алфавиту — для выпадающего списка в админке.
- * Названия должны совпадать с форматом Global Demonlist ('United-States'),
- * иначе флаг не найдётся. Список берём отсюда, чтобы не вводить руками.
- */
-export const НАЗВАНИЯ_СТРАН = Object.keys(COUNTRY_CODES).sort();
+export const COUNTRY_NAME = Object.keys(COUNTRY_CODES).sort();
 
-/** Как страна называется по-человечески: 'United-States' -> 'United States'. */
-export function читаемаяСтрана(name: string): string {
+export function haveCountry(name: string): string {
   return name.replace(/-/g, ' ');
 }

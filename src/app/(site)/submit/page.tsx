@@ -8,7 +8,6 @@ export const metadata: Metadata = {
     description: 'Прошли сложный демон или показали хороший процент — расскажите нам.',
 };
 
-/** Форма всегда свежая: кэшировать нечего, данных она не читает. */
 export const dynamic = 'force-dynamic';
 
 export default function SubmitPage() {

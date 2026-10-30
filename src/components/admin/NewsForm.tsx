@@ -5,12 +5,7 @@ import { Label } from '@/src/components/ui/label';
 import { Switch } from '@/src/components/ui/switch';
 import { Button, buttonVariants } from '@/src/components/ui/button';
 
-/**
- * Что показать в полях. Свой тип, а не NewsItem с сайта: там нет поля
- * published, потому что публичным страницам черновики не отдаются.
- * Админке оно как раз нужно.
- */
-export type ЗначенияНовости = {
+export type NewsValue = {
     title: string;
     category: string;
     date: string;
@@ -19,22 +14,12 @@ export type ЗначенияНовости = {
     published: boolean;
 };
 
-/**
- * Форма новости — одна на создание и на правку.
- *
- * Отличаются они только тем, что подставлено в поля и куда уходит отправка.
- * Две почти одинаковые формы — верный способ поправить одну и забыть вторую.
- *
- * Несмотря на shadcn, это по-прежнему обычная HTML-форма с серверным
- * действием: компоненты дают внешний вид, а не механику. Клиентского
- * JavaScript тут нет, кроме самого переключателя.
- */
 export function NewsForm({
     action,
-    новость,
+    news,
 }: {
     action: (form: FormData) => Promise<void>;
-    новость?: ЗначенияНовости;
+    news?: NewsValue;
 }) {
     return (
         <form action={action} className="space-y-5">
@@ -45,7 +30,7 @@ export function NewsForm({
                     name="title"
                     required
                     maxLength={200}
-                    defaultValue={новость?.title ?? ''}
+                    defaultValue={news?.title ?? ''}
                     placeholder="Society занимает первое место списка"
                 />
             </div>
@@ -58,7 +43,7 @@ export function NewsForm({
                         name="category"
                         required
                         maxLength={50}
-                        defaultValue={новость?.category ?? 'Новость'}
+                        defaultValue={news?.category ?? 'Новость'}
                     />
                     <p className="text-xs text-muted-foreground">
                         Показывается оранжевым над заголовком
@@ -72,7 +57,7 @@ export function NewsForm({
                         type="date"
                         name="date"
                         required
-                        defaultValue={новость?.date ?? new Date().toISOString().slice(0, 10)}
+                        defaultValue={news?.date ?? new Date().toISOString().slice(0, 10)}
                     />
                     <p className="text-xs text-muted-foreground">
                         Можно поставить любую, не только сегодняшнюю
@@ -87,7 +72,7 @@ export function NewsForm({
                     name="text"
                     required
                     rows={10}
-                    defaultValue={новость?.text ?? ''}
+                    defaultValue={news?.text ?? ''}
                     className="leading-relaxed"
                 />
             </div>
@@ -95,11 +80,10 @@ export function NewsForm({
             <div className="space-y-3 rounded-lg border p-4">
                 <Label htmlFor="картинка">Картинка</Label>
 
-                {новость?.image && (
+                {news?.image && (
                     <div className="space-y-2">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                            src={новость.image}
+                            src={news.image}
                             alt=""
                             className="h-32 w-full rounded border object-cover"
                         />
@@ -119,7 +103,7 @@ export function NewsForm({
                 />
                 <p className="text-xs text-muted-foreground">
                     JPG, PNG, WebP или GIF, до 5 МБ.{' '}
-                    {новость?.image
+                    {news?.image
                         ? 'Выберите новый файл, чтобы заменить.'
                         : 'Можно оставить пустым.'}
                 </p>
@@ -129,7 +113,7 @@ export function NewsForm({
                 <Switch
                     id="published"
                     name="published"
-                    defaultChecked={новость?.published ?? false}
+                    defaultChecked={news?.published ?? false}
                 />
                 <div>
                     <Label htmlFor="published">Опубликовать</Label>

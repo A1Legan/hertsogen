@@ -1,39 +1,21 @@
 import { z } from 'zod';
 
-/**
- * Twitch: узнать, идёт ли эфир.
- *
- * Работает через «токен приложения» — Twitch выдаёт его нашему серверу
- * по client id и секрету, без участия пользователя. Никто ни в какой
- * аккаунт не входит: мы просто спрашиваем публичные сведения.
- */
-
 const CLIENT_ID = process.env.TWITCH_CLIENT_ID;
 const CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET;
 
-export function twitchНастроен(): boolean {
+export function twitch(): boolean {
     return Boolean(CLIENT_ID && CLIENT_SECRET);
 }
-
-/* ------------------------------------------------------------------ *
- * ТОКЕН
- * ------------------------------------------------------------------ */
-
-const ОтветТокена = z.object({
+const tokenAnswer = z.object({
     access_token: z.string(),
     expires_in: z.number(),
 });
 
-/**
- * Токен живёт около двух месяцев, поэтому держим его в памяти процесса
- * и просим новый только когда старый близок к концу. Запрашивать токен
- * на каждый вызов — лишний круг к чужому серверу.
- */
-let токенВПамяти: { значение: string; годенДо: number } | null = null;
+let tokenInData: { value: string; time: number } | null = null;
 
-async function получитьТокен(): Promise<string> {
-    if (токенВПамяти && токенВПамяти.годенДо > Date.now()) {
-        return токенВПамяти.значение;
+async function getToken(): Promise<string> {
+    if (tokenInData && tokenInData.time > Date.now()) {
+        return tokenInData.value;
     }
 
     const res = await fetch('https://id.twitch.tv/oauth2/token', {
@@ -48,39 +30,30 @@ async function получитьТокен(): Promise<string> {
     });
 
     if (!res.ok) {
-        // Twitch кладёт причину в тело ответа, и она бывает точной:
-        // 'invalid client' — не тот id, 'invalid client secret' — не тот секрет.
-        // Раньше я это выбрасывал и оставлял голый номер ошибки — искать
-        // по нему причину невозможно.
-        const подробности = await res.text().catch(() => '');
+        const details = await res.text().catch(() => '');
 
-        const подсказка =
+        const hint =
             res.status === 400 || res.status === 401
                 ? ' Скорее всего перепутаны местами TWITCH_CLIENT_ID и TWITCH_CLIENT_SECRET, ' +
-                  'либо секрет устарел — Twitch показывает его один раз.'
+                'либо секрет устарел — Twitch показывает его один раз.'
                 : '';
 
         throw new Error(
-            `Twitch не выдал токен: HTTP ${res.status}. ${подробности}${подсказка}`,
+            `Twitch не выдал токен: HTTP ${res.status}. ${details}${hint}`,
         );
     }
 
-    const данные = ОтветТокена.parse(await res.json());
+    const data = tokenAnswer.parse(await res.json());
 
-    токенВПамяти = {
-        значение: данные.access_token,
-        // Минута запаса, чтобы не попасть в момент истечения
-        годенДо: Date.now() + (данные.expires_in - 60) * 1000,
+    tokenInData = {
+        value: data.access_token,
+        time: Date.now() + (data.expires_in - 60) * 1000,
     };
 
-    return данные.access_token;
+    return data.access_token;
 }
 
-/* ------------------------------------------------------------------ *
- * СТАТУС ЭФИРА
- * ------------------------------------------------------------------ */
-
-const ОтветСтримов = z.object({
+const answer = z.object({
     data: z.array(
         z.object({
             user_login: z.string(),
@@ -90,36 +63,28 @@ const ОтветСтримов = z.object({
     ),
 });
 
-export type СостояниеЭфира = {
-    вЭфире: boolean;
-    название: string | null;
-    зрителей: number | null;
+export type liveCheck = {
+    inLive: boolean;
+    name: string | null;
+    viewers: number | null;
 };
 
-/**
- * Спрашивает статус сразу для нескольких ников — Twitch позволяет
- * до 100 за один запрос. Один вызов вместо десяти.
- *
- * Возвращает словарь «ник в нижнем регистре -> состояние». Ников,
- * которых нет в ответе, там просто не будет: значит эфир не идёт.
- */
-export async function статусЭфиров(
-    ники: string[],
-): Promise<Map<string, СостояниеЭфира>> {
-    const итог = new Map<string, СостояниеЭфира>();
+export async function checkLive(
+    nickname: string[],
+): Promise<Map<string, liveCheck>> {
+    const result = new Map<string, liveCheck>();
 
-    const чистые = [...new Set(ники.map((н) => н.trim().toLowerCase()).filter(Boolean))];
-    if (чистые.length === 0 || !twitchНастроен()) return итог;
+    const clear = [...new Set(nickname.map((н) => н.trim().toLowerCase()).filter(Boolean))];
+    if (clear.length === 0 || !twitch()) return result;
 
-    // Twitch принимает не больше 100 ников за раз
-    for (let i = 0; i < чистые.length; i += 100) {
-        const пачка = чистые.slice(i, i + 100);
-        const параметры = пачка.map((н) => `user_login=${encodeURIComponent(н)}`).join('&');
+    for (let i = 0; i < clear.length; i += 100) {
+        const pack = clear.slice(i, i + 100);
+        const params = pack.map((н) => `user_login=${encodeURIComponent(н)}`).join('&');
 
-        const res = await fetch(`https://api.twitch.tv/helix/streams?${параметры}`, {
+        const res = await fetch(`https://api.twitch.tv/helix/streams?${params}`, {
             headers: {
                 'Client-Id': CLIENT_ID!,
-                Authorization: `Bearer ${await получитьТокен()}`,
+                Authorization: `Bearer ${await getToken()}`,
             },
             cache: 'no-store',
         });
@@ -128,23 +93,22 @@ export async function статусЭфиров(
             throw new Error(`Twitch вернул HTTP ${res.status}`);
         }
 
-        const данные = ОтветСтримов.parse(await res.json());
+        const data = answer.parse(await res.json());
 
-        for (const с of данные.data) {
-            итог.set(с.user_login.toLowerCase(), {
-                вЭфире: true,
-                название: с.title,
-                зрителей: с.viewer_count ?? null,
+        for (const с of data.data) {
+            result.set(с.user_login.toLowerCase(), {
+                inLive: true,
+                name: с.title,
+                viewers: с.viewer_count ?? null,
             });
         }
     }
 
-    // Кого не вернули — те не в эфире
-    for (const ник of чистые) {
-        if (!итог.has(ник)) {
-            итог.set(ник, { вЭфире: false, название: null, зрителей: null });
+    for (const nickname of clear) {
+        if (!result.has(nickname)) {
+            result.set(nickname, { inLive: false, name: null, viewers: null });
         }
     }
 
-    return итог;
+    return result;
 }

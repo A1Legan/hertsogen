@@ -1,28 +1,18 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { getLevels } from '@/src/lib/demonlist';
 import { prisma } from '@/src/lib/prisma';
 import { Card, CardContent } from '@/src/components/ui/card';
 import { buttonVariants } from '@/src/components/ui/button';
 import { cn } from '@/src/lib/utils';
 import { RankForm } from '@/src/components/admin/RankForm';
-import { добавитьУровень } from '../actions';
+import { addLevel } from '../actions';
 
 export const metadata: Metadata = { title: 'Добавить уровень', robots: { index: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function NewRankPage() {
-    const [все, всего] = await Promise.all([getLevels(), prisma.communityRank.count()]);
-
-    // Отдаём в браузер только то, что нужно поиску. Полные записи тянут
-    // за собой превью, ссылки и проверяющих — лишние сотни килобайт
-    const уровни = все.map((l) => ({
-        id: l.id,
-        name: l.name,
-        position: l.position,
-        builder: l.builder,
-    }));
+    const всего = await prisma.communityRank.count();
 
     return (
         <div className="mx-auto max-w-2xl">
@@ -45,7 +35,7 @@ export default async function NewRankPage() {
 
             <Card>
                 <CardContent>
-                    <RankForm action={добавитьУровень} уровни={уровни} всего={всего + 1} />
+                    <RankForm action={addLevel} all={всего + 1} />
                 </CardContent>
             </Card>
         </div>

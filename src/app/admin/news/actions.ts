@@ -5,35 +5,19 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/src/auth';
 import { prisma } from '@/src/lib/prisma';
-import { загрузитьКартинку, удалитьКартинку, хранилищеНастроено } from '@/src/lib/storage';
+import { uploadPicture, deletePicture, dataMake } from '@/src/lib/storage';
 
-/**
- * Действия над новостями.
- *
- * ВАЖНОЕ ПРО БЕЗОПАСНОСТЬ.
- *
- * 'use server' превращает каждую функцию отсюда в обычный сетевой адрес,
- * на который можно послать запрос напрямую — курлом, из консоли браузера,
- * откуда угодно. Middleware такой запрос не остановит: он охраняет страницы,
- * а не действия.
- *
- * Поэтому КАЖДОЕ действие само проверяет вход. Не «на всякий случай»,
- * а потому что это единственная настоящая защита. Всё, что в интерфейсе,
- * — только удобство: кнопку можно не нажимать, а запрос всё равно послать.
- */
+async function checkAllow() {
+    const session = await auth();
 
-async function проверитьДоступ() {
-    const сессия = await auth();
-
-    if (!сессия?.user?.email) {
+    if (!session?.user?.email) {
         throw new Error('Нет доступа');
     }
 
-    return сессия.user.email;
+    return session.user.email;
 }
 
-/** Поля формы, кроме картинки — она обрабатывается отдельно. */
-const ФормаНовости = z.object({
+const NewsForm = z.object({
     title: z.string().trim().min(1, 'Заголовок обязателен').max(200),
     category: z.string().trim().min(1).max(50),
     date: z.string().min(1, 'Дата обязательна'),
@@ -41,8 +25,8 @@ const ФормаНовости = z.object({
     published: z.boolean(),
 });
 
-function разобратьФорму(form: FormData) {
-    return ФормаНовости.parse({
+function checkForm(form: FormData) {
+    return NewsForm.parse({
         title: form.get('title'),
         category: form.get('category'),
         date: form.get('date'),
@@ -52,108 +36,92 @@ function разобратьФорму(form: FormData) {
     });
 }
 
-/**
- * Что делать с картинкой.
- *
- * Три случая, и их надо различать:
- *  — выбрали новый файл          -> загрузить, вернуть новый адрес
- *  — нажали «убрать картинку»    -> вернуть null
- *  — не трогали                  -> оставить как было
- *
- * Без третьего случая правка заголовка молча стирала бы картинку.
- */
-async function разобратьКартинку(
+async function checkImage(
     form: FormData,
-    текущая: string | null,
+    now: string | null,
 ): Promise<string | null> {
     if (form.get('удалитьКартинку') === 'on') {
-        await удалитьКартинку(текущая);
+        await deletePicture(now);
         return null;
     }
 
-    const файл = form.get('картинка');
+    const file = form.get('картинка');
 
-    // Пустой input type=file присылает File с нулевым размером
-    if (!(файл instanceof File) || файл.size === 0) {
-        return текущая;
+    if (!(file instanceof File) || file.size === 0) {
+        return now;
     }
 
-    if (!хранилищеНастроено()) {
+    if (!dataMake()) {
         throw new Error('Хранилище картинок не настроено — загрузка недоступна');
     }
 
-    const новая = await загрузитьКартинку(файл, 'news');
+    const newNew = await uploadPicture(file, 'news');
 
-    // Старая больше не нужна. Удаляем после успешной загрузки, а не до:
-    // если загрузка упадёт, лучше остаться со старой картинкой, чем без обеих.
-    await удалитьКартинку(текущая);
+    await deletePicture(now);
 
-    return новая;
+    return newNew;
 }
 
-/** Обновить страницы сайта, которые показывают новости. */
-function обновитьСайт() {
+function updateSite() {
     revalidatePath('/');
     revalidatePath('/news');
     revalidatePath('/admin/news');
 }
 
-export async function создатьНовость(form: FormData) {
-    await проверитьДоступ();
+export async function createNews(form: FormData) {
+    await checkAllow();
 
-    const данные = разобратьФорму(form);
-    const image = await разобратьКартинку(form, null);
+    const data = checkForm(form);
+    const image = await checkImage(form, null);
 
     await prisma.news.create({
-        data: { ...данные, image, date: new Date(данные.date) },
+        data: { ...data, image, date: new Date(data.date) },
     });
 
-    обновитьСайт();
+    updateSite();
     redirect('/admin/news');
 }
 
-export async function обновитьНовость(id: string, form: FormData) {
-    await проверитьДоступ();
+export async function updateNews(id: string, form: FormData) {
+    await checkAllow();
 
-    const прежняя = await prisma.news.findUnique({ where: { id } });
-    if (!прежняя) throw new Error('Новость не найдена');
+    const before = await prisma.news.findUnique({ where: { id } });
+    if (!before) throw new Error('Новость не найдена');
 
-    const данные = разобратьФорму(form);
-    const image = await разобратьКартинку(form, прежняя.image);
+    const data = checkForm(form);
+    const image = await checkImage(form, before.image);
 
     await prisma.news.update({
         where: { id },
-        data: { ...данные, image, date: new Date(данные.date) },
+        data: { ...data, image, date: new Date(data.date) },
     });
 
-    обновитьСайт();
+    updateSite();
     redirect('/admin/news');
 }
 
-export async function удалитьНовость(id: string) {
-    await проверитьДоступ();
+export async function deleteNews(id: string) {
+    await checkAllow();
 
     const новость = await prisma.news.findUnique({ where: { id } });
 
     await prisma.news.delete({ where: { id } });
 
-    // Картинку убираем следом, чтобы не копить мусор в хранилище
-    await удалитьКартинку(новость?.image ?? null);
+    await deletePicture(новость?.image ?? null);
 
-    обновитьСайт();
+    updateSite();
 }
 
-/** Быстрое переключение «опубликовано / черновик» прямо из списка. */
-export async function переключитьПубликацию(id: string) {
-    await проверитьДоступ();
+export async function changePost(id: string) {
+    await checkAllow();
 
-    const новость = await prisma.news.findUnique({ where: { id } });
-    if (!новость) return;
+    const news = await prisma.news.findUnique({ where: { id } });
+    if (!news) return;
 
     await prisma.news.update({
         where: { id },
-        data: { published: !новость.published },
+        data: { published: !news.published },
     });
 
-    обновитьСайт();
+    updateSite();
 }

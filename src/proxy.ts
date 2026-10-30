@@ -1,35 +1,18 @@
 import { auth } from '@/src/auth';
 import { NextResponse } from 'next/server';
 
-/**
- * Охрана админки.
- *
- * Этот файл выполняется ДО того, как Next начнёт собирать страницу.
- * Это второй рубеж: даже если на какой-то странице внутри /admin забудут
- * проверить вход, сюда запрос всё равно не дойдёт.
- *
- * Полагаться только на то, что «страницы админки никто не знает», нельзя:
- * адреса находятся, а закрытая дверь работает независимо от знания адреса.
- *
- * ПРО ИМЯ ФАЙЛА. Next находит его по названию, а не по содержимому:
- * раньше точка входа называлась middleware.ts, с шестнадцатой версии —
- * proxy.ts. Переименуешь во что-то другое — файл просто перестанут
- * читать, и админка молча откроется всем. Ошибки при этом не будет.
- */
 export default auth((req) => {
-    const залогинен = !!req.auth;
-    const путь = req.nextUrl.pathname;
+    const login = !!req.auth;
+    const path = req.nextUrl.pathname;
 
-    // Страницу входа пускаем всегда, иначе получится замкнутый круг
-    if (путь === '/admin/login') {
-        // А залогиненного с неё сразу уводим внутрь
-        if (залогинен) {
+    if (path === '/admin/login') {
+        if (login) {
             return NextResponse.redirect(new URL('/admin', req.nextUrl));
         }
         return NextResponse.next();
     }
 
-    if (!залогинен) {
+    if (!login) {
         return NextResponse.redirect(new URL('/admin/login', req.nextUrl));
     }
 
@@ -37,7 +20,5 @@ export default auth((req) => {
 });
 
 export const config = {
-    // Middleware трогает только админку. Публичные страницы, картинки
-    // и статика проходят мимо — иначе каждый запрос стал бы дороже.
     matcher: ['/admin/:path*'],
 };

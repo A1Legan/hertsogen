@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/src/components/ui/card';
 import { buttonVariants } from '@/src/components/ui/button';
 import { cn } from '@/src/lib/utils';
 import { StreamForm } from '@/src/components/admin/StreamForm';
-import { создатьСтрим } from '../actions';
+import { createLive } from '../actions';
 
 export const metadata: Metadata = { title: 'Новый стрим', robots: { index: false } };
 
@@ -27,7 +27,7 @@ export default function NewStreamPage() {
 
             <Card>
                 <CardContent>
-                    <StreamForm action={создатьСтрим} />
+                    <StreamForm action={createLive} />
                 </CardContent>
             </Card>
         </div>

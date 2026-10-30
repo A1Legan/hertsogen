@@ -6,19 +6,11 @@ import { UpdateProgressForm } from '@/src/components/UpdateProgressForm';
 
 export const metadata: Metadata = {
     title: 'Обновить прогресс',
-    // Личная ссылка не должна попасть в поисковики
     robots: { index: false, follow: false },
 };
 
 export const dynamic = 'force-dynamic';
 
-/**
- * Личная страница стримера: /update/{ключ}
- *
- * Вход не нужен — ключ в адресе и есть пропуск. Страница нарочно
- * простая и крупная: её открывают с телефона одной рукой, между
- * попытками, и всё должно нажиматься не глядя.
- */
 export default async function UpdatePage({
     params,
 }: {
@@ -26,8 +18,8 @@ export default async function UpdatePage({
 }) {
     const { token } = await params;
 
-    const стрим = await prisma.stream.findUnique({ where: { updateToken: token } });
-    if (!стрим) notFound();
+    const stream = await prisma.stream.findUnique({ where: { updateToken: token } });
+    if (!stream) notFound();
 
     return (
         <div className="mx-auto max-w-md px-4 py-10">
@@ -37,15 +29,15 @@ export default async function UpdatePage({
                         Обновление прогресса
                     </p>
                     <div className="flex items-center gap-2 text-xl font-black text-gray-900">
-                        <Flag country={стрим.playerCountry} />
-                        {стрим.playerName}
+                        <Flag country={stream.playerCountry} />
+                        {stream.playerName}
                     </div>
                 </div>
 
                 <UpdateProgressForm
                     token={token}
-                    levelName={стрим.levelName}
-                    progress={стрим.progress}
+                    levelName={stream.levelName}
+                    progress={stream.progress}
                 />
 
                 <div className="mt-6 border-t border-gray-200 pt-4 text-xs leading-relaxed text-gray-500">

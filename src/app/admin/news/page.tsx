@@ -14,14 +14,13 @@ import {
     TableRow,
 } from '@/src/components/ui/table';
 import { DeleteButton } from '@/src/components/admin/DeleteButton';
-import { удалитьНовость, переключитьПубликацию } from './actions';
+import { deleteNews, changePost } from './actions';
 
 export const metadata: Metadata = { title: 'Новости', robots: { index: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function AdminNewsPage() {
-    // Все, включая черновики — в отличие от getNews() для публичного сайта
-    const новости = await prisma.news.findMany({ orderBy: { date: 'desc' } });
+    const news = await prisma.news.findMany({ orderBy: { date: 'desc' } });
 
     return (
         <>
@@ -32,19 +31,13 @@ export default async function AdminNewsPage() {
                         Черновики видны только здесь, на сайт они не попадают.
                     </p>
                 </div>
-                {/*
-                    Ссылка со стилями кнопки, а не <Button render={<Link/>}>.
-                    Base UI ждёт внутри Button настоящий <button>, а ссылка —
-                    это <a>. Подменять одно другим он не даёт, и правильно:
-                    у кнопки и ссылки разное поведение с клавиатурой.
-                */}
                 <Link href="/admin/news/new" className={buttonVariants()}>
                     <Plus className="size-4" />
                     Написать
                 </Link>
             </div>
 
-            {новости.length === 0 ? (
+            {news.length === 0 ? (
                 <Card className="p-12 text-center">
                     <p className="mb-4 text-muted-foreground">Пока ничего нет</p>
                     <Link
@@ -68,7 +61,7 @@ export default async function AdminNewsPage() {
                         </TableHeader>
 
                         <TableBody>
-                            {новости.map((н) => (
+                            {news.map((н) => (
                                 <TableRow key={н.id}>
                                     <TableCell className="max-w-0 truncate font-medium">
                                         {н.title}
@@ -88,15 +81,10 @@ export default async function AdminNewsPage() {
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center justify-end gap-0.5">
-                                            {/*
-                                                Отдельная форма на кнопку: вложенных
-                                                форм в HTML не бывает, а каждое
-                                                действие уходит со своими данными.
-                                            */}
                                             <form
                                                 action={async () => {
                                                     'use server';
-                                                    await переключитьПубликацию(н.id);
+                                                    await changePost(н.id);
                                                 }}
                                             >
                                                 <Button
@@ -125,11 +113,11 @@ export default async function AdminNewsPage() {
                                             </Link>
 
                                             <DeleteButton
-                                                название={н.title}
-                                                что="Новость"
+                                                name={н.title}
+                                                what="Новость"
                                                 action={async () => {
                                                     'use server';
-                                                    await удалитьНовость(н.id);
+                                                    await deleteNews(н.id);
                                                 }}
                                             />
                                         </div>

@@ -7,10 +7,6 @@ export const metadata: Metadata = {
     description: 'Что такое демонлист, очки, requirement и extended list — объяснение для новичка.',
 };
 
-/**
- * Ключевая страница для главной цели проекта: объяснить новичку, что тут вообще
- * происходит. Всё написано простым языком, без жаргона, каждый термин раскрыт.
- */
 export default function RatingInfoPage() {
     return (
         <Shell>

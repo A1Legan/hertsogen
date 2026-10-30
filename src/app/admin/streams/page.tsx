@@ -15,7 +15,7 @@ import {
 } from '@/src/components/ui/table';
 import { DeleteButton } from '@/src/components/admin/DeleteButton';
 import { Flag } from '@/src/components/Flag';
-import { удалитьСтрим, переключитьЭфир } from './actions';
+import { deleteLive, changeLive } from './actions';
 
 export const metadata: Metadata = { title: 'Стримы', robots: { index: false } };
 export const dynamic = 'force-dynamic';
@@ -64,20 +64,20 @@ export default async function AdminStreamsPage() {
                         </TableHeader>
 
                         <TableBody>
-                            {стримы.map((с) => (
-                                <TableRow key={с.id}>
+                            {стримы.map((c) => (
+                                <TableRow key={c.id}>
                                     <TableCell>
                                         <span className="flex items-center gap-2 font-medium">
-                                            <Flag country={с.playerCountry} />
-                                            {с.playerName}
+                                            <Flag country={c.playerCountry} />
+                                            {c.playerName}
                                         </span>
                                     </TableCell>
                                     <TableCell className="max-w-0 truncate text-muted-foreground">
-                                        {с.levelName}
+                                        {c.levelName}
                                     </TableCell>
-                                    <TableCell className="tabular-nums">{с.progress}%</TableCell>
+                                    <TableCell className="tabular-nums">{c.progress}%</TableCell>
                                     <TableCell>
-                                        {с.isLive ? (
+                                        {c.isLive ? (
                                             <Badge className="bg-red-600 text-white">в эфире</Badge>
                                         ) : (
                                             <Badge variant="outline">не в эфире</Badge>
@@ -88,7 +88,7 @@ export default async function AdminStreamsPage() {
                                             <form
                                                 action={async () => {
                                                     'use server';
-                                                    await переключитьЭфир(с.id);
+                                                    await changeLive(c.id);
                                                 }}
                                             >
                                                 <Button
@@ -96,10 +96,10 @@ export default async function AdminStreamsPage() {
                                                     variant="ghost"
                                                     size="icon"
                                                     aria-label={
-                                                        с.isLive ? 'Снять с эфира' : 'Пометить в эфире'
+                                                        c.isLive ? 'Снять с эфира' : 'Пометить в эфире'
                                                     }
                                                 >
-                                                    {с.isLive ? (
+                                                    {c.isLive ? (
                                                         <RadioTower className="size-4 text-red-600" />
                                                     ) : (
                                                         <Radio className="size-4 text-muted-foreground" />
@@ -108,7 +108,7 @@ export default async function AdminStreamsPage() {
                                             </form>
 
                                             <Link
-                                                href={`/admin/streams/${с.id}`}
+                                                href={`/admin/streams/${c.id}`}
                                                 aria-label="Править"
                                                 className={buttonVariants({
                                                     variant: 'ghost',
@@ -119,11 +119,11 @@ export default async function AdminStreamsPage() {
                                             </Link>
 
                                             <DeleteButton
-                                                название={`${с.playerName} — ${с.levelName}`}
-                                                что="Стрим"
+                                                name={`${c.playerName} — ${c.levelName}`}
+                                                what="Стрим"
                                                 action={async () => {
                                                     'use server';
-                                                    await удалитьСтрим(с.id);
+                                                    await deleteLive(c.id);
                                                 }}
                                             />
                                         </div>

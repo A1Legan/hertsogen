@@ -10,9 +10,7 @@ export const metadata: Metadata = {
     title: 'Список уровней',
     description: 'Топ-150 сложнейших демонов Geometry Dash по версии Global Demonlist.',
 };
-
-/** Сколько показываем сразу и на сколько прибавляет кнопка */
-const ШАГ = 150;
+const STEP = 150;
 
 export default async function LevelsPage({
     searchParams,
@@ -21,27 +19,22 @@ export default async function LevelsPage({
 }) {
     const { q, n } = await searchParams;
 
-    // Два независимых запроса — запускаем разом, а не по очереди
-    const [все, players] = await Promise.all([getLevels(), getPlayers()]);
+    const [all, players] = await Promise.all([getLevels(), getPlayers()]);
 
-    // Ищем по названию и по автору. Оба списка уже у нас в памяти,
-    // ходить в API за поиском незачем — 1808 записей перебираются мгновенно.
-    const запрос = q?.trim().toLowerCase() ?? '';
-    const подходящие = запрос
-        ? все.filter(
-              (l) =>
-                  l.name.toLowerCase().includes(запрос) ||
-                  l.builder.toLowerCase().includes(запрос),
-          )
-        : все;
+    const request = q?.trim().toLowerCase() ?? '';
+    const approved = request
+        ? all.filter(
+            (l) =>
+            l.name.toLowerCase().includes(request) ||
+            l.builder.toLowerCase().includes(request),
+        )
+        : all;
 
-    // Число из адреса пришло строкой и может быть чем угодно — например,
-    // человек руками впишет ?n=999999999. Ограничиваем сверху длиной списка
-    const сколько = Math.min(
-        Math.max(Number(n) || ШАГ, ШАГ),
-        подходящие.length,
+    const howMuch = Math.min(
+        Math.max(Number(n) || STEP, STEP),
+        approved.length,
     );
-    const levels = подходящие.slice(0, сколько);
+    const levels = approved.slice(0, howMuch);
 
     return (
         <Shell>
@@ -55,10 +48,10 @@ export default async function LevelsPage({
             <div className="p-4 sm:p-6">
                 <SearchBox
                     placeholder="Название уровня или автор"
-                    подпись="Поиск по списку уровней"
+                    signature="Поиск по списку уровней"
                 />
 
-                {подходящие.length === 0 ? (
+                {approved.length === 0 ? (
                     <p className="border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-600">
                         По запросу «{q}» ничего не нашлось. Попробуйте часть названия —
                         например, «tidal» вместо «Tidal Wave».
@@ -75,10 +68,10 @@ export default async function LevelsPage({
                         ))}
 
                         <ShowMore
-                            показано={levels.length}
-                            естьЕщё={levels.length < подходящие.length}
-                            шаг={ШАГ}
-                            единицы="уровней"
+                            showed={levels.length}
+                            more={levels.length < approved.length}
+                            step={STEP}
+                            amount="уровней"
                         />
                     </>
                 )}

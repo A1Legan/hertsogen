@@ -9,7 +9,6 @@ export const metadata: Metadata = {
     description: 'Кто прямо сейчас проходит сложнейшие демоны Geometry Dash.',
 };
 
-/** Единственные живые данные на сайте — обновляем часто. */
 export const revalidate = 60;
 
 export default async function StreamsPage() {
@@ -22,8 +21,6 @@ export default async function StreamsPage() {
                 subtitle="Процент — это лучший результат, которого игрок добился на уровне."
             />
 
-            {/* Своя форма вместо гугл-формы: не уводит с сайта и не зависит
-                от чужого сервиса */}
             <div className="border-b border-gray-200 bg-orange-50 px-4 py-4 sm:px-6">
                 <p className="mb-2 text-sm text-gray-700">
                     Прошли уровень или показали хороший процент? Расскажите — добавим в список.
@@ -66,7 +63,6 @@ export default async function StreamsPage() {
                             проходит <span className="font-bold text-gray-900">{s.levelName}</span>
                         </div>
 
-                        {/* Полоса прогресса: цифру видно, но полоса понятнее с первого взгляда */}
                         <div className="flex items-center gap-3">
                             <div className="h-2 flex-1 overflow-hidden rounded bg-gray-200">
                                 <div

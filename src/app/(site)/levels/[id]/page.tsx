@@ -3,20 +3,13 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { getLevels, getPlayers } from '@/src/lib/demonlist';
+import { prisma } from '@/src/lib/prisma';
 import { Shell } from '@/src/components/Shell';
 import { Flag } from '@/src/components/Flag';
-import { Hint, ПОЯСНЕНИЯ } from '@/src/components/Hint';
+import { Hint, SECRET } from '@/src/components/Hint';
 
 export const revalidate = 3600;
 
-/**
- * Страница одного уровня: /levels/3393
- *
- * [id] в имени папки означает «здесь любое значение».
- * В Next 15+ params приходит как Promise, поэтому его нужно await.
- */
-
-/** Заранее собрать страницы для топ-150. Остальные соберутся по первому заходу. */
 export async function generateStaticParams() {
     const levels = await getLevels();
     return levels.slice(0, 150).map((l) => ({ id: String(l.id) }));
@@ -48,13 +41,17 @@ export default async function LevelPage({
     const [levels, players] = await Promise.all([getLevels(), getPlayers()]);
     const level = levels.find((l) => String(l.id) === id);
 
-    // Такого уровня нет — отдаём честную 404, а не пустую страницу
     if (!level) notFound();
 
+    const request = await prisma.stream.findMany({
+        where: { levelId: level.id },
+        orderBy: [{ isLive: 'desc' }, { progress: 'desc' }],
+    });
+
     const verifierCountry = players.get(level.verifier.id)?.country ?? 'Unknown';
-    const вРасширенном = level.position > 150;
-    const минуты = Math.floor(level.lengthSec / 60);
-    const секунды = level.lengthSec % 60;
+    const inExtended = level.position > 150;
+    const min = Math.floor(level.lengthSec / 60);
+    const sec = level.lengthSec % 60;
 
     return (
         <Shell>
@@ -68,7 +65,7 @@ export default async function LevelPage({
                 </div>
                 <p className="mt-1 text-sm text-gray-500">
                     Построил <span className="font-bold text-gray-700">{level.builder}</span>
-                    <Hint text={ПОЯСНЕНИЯ.builder} />
+                    <Hint text={SECRET.builder} />
                 </p>
             </div>
 
@@ -91,30 +88,30 @@ export default async function LevelPage({
                 <dl className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
                     <StatBox
                         label="Очки"
-                        hint={вРасширенном ? ПОЯСНЕНИЯ.extended : ПОЯСНЕНИЯ.points}
+                        hint={inExtended ? SECRET.extended : SECRET.points}
                         value={level.points.toFixed(2)}
                     />
                     <StatBox
                         label="Нужно пройти"
-                        hint={ПОЯСНЕНИЯ.requirement}
+                        hint={SECRET.requirement}
                         value={`${level.requirement}%`}
                     />
                     <StatBox
                         label="Место"
-                        hint={ПОЯСНЕНИЯ.position}
+                        hint={SECRET.position}
                         value={`#${level.position}`}
                     />
                     <StatBox
                         label="Длительность"
                         hint="Продолжительность уровня по данным Global Demonlist."
-                        value={`${минуты}:${String(секунды).padStart(2, '0')}`}
+                        value={`${min}:${String(sec).padStart(2, '0')}`}
                     />
                 </dl>
 
                 <div className="mb-6 border border-gray-200 bg-gray-50 p-4">
                     <p className="mb-1 text-[10px] font-bold uppercase text-gray-400">
                         Верифицировал
-                        <Hint text={ПОЯСНЕНИЯ.verifier} />
+                        <Hint text={SECRET.verifier} />
                     </p>
                     <Link
                         href={`/players/${level.verifier.id}`}
@@ -138,6 +135,49 @@ export default async function LevelPage({
                     <p className="rounded border border-dashed border-gray-300 px-6 py-3 text-center text-sm text-gray-500">
                         Видео прохождения недоступно — в источнике битая ссылка.
                     </p>
+                )}
+
+                {request.length > 0 && (
+                    <div className="mt-8">
+                        <h2 className="mb-3 text-sm font-bold uppercase text-gray-500">
+                            Прохождения и прогрессы
+                        </h2>
+
+                        <p className="mb-3 text-xs text-gray-500">
+                            Присланное посетителями H&amp;CR и одобренное модератором.
+                            Список Global Demonlist ведётся отдельно.
+                        </p>
+
+                        {request.map((z) => (
+                            <a
+                                key={z.id}
+                                href={z.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mb-1.5 flex items-center gap-3 border border-gray-200 bg-white px-3 py-2.5 transition-colors hover:border-gray-400 hover:bg-gray-50"
+                            >
+                                <Flag country={z.playerCountry} />
+
+                                <span className="min-w-0 flex-1 truncate font-bold text-gray-900">
+                                    {z.playerName}
+                                </span>
+
+                                {z.isLive && (
+                                    <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-red-500">
+                                        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-red-500" />
+                                        Live
+                                    </span>
+                                )}
+                                <span
+                                    className={`text-sm font-bold ${
+                                        z.progress >= 100 ? 'text-green-600' : 'text-gray-500'
+                                    }`}
+                                >
+                                    {z.progress}%
+                                </span>
+                            </a>
+                        ))}
+                    </div>
                 )}
 
                 <p className="mt-6 text-xs text-gray-400">

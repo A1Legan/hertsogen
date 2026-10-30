@@ -2,108 +2,54 @@ import { createHash } from 'node:crypto';
 import { headers } from 'next/headers';
 import { prisma } from './prisma';
 
-/**
- * Заявки на рекорд от посетителей.
- *
- * Тут собрано всё, что связано с защитой от спама. Капчи нет намеренно:
- * она портит жизнь честным людям, а поток заявок у нас — единицы в день.
- * Вместо неё три дешёвых приёма, каждый отсеивает свой тип отправителя.
- */
-
-/* ------------------------------------------------------------------ *
- * АДРЕС ОТПРАВИТЕЛЯ
- * ------------------------------------------------------------------ */
-
-/**
- * Хеш адреса отправителя.
- *
- * Сам адрес не храним: это персональные данные, а нам нужно лишь уметь
- * ответить «это тот же отправитель или другой». Хеш с солью на это годится,
- * а восстановить из него адрес нельзя.
- *
- * Соль берём из AUTH_SECRET — он уже есть и уже секретный. Без соли хеш
- * бесполезен: адресов всего четыре миллиарда, их можно перебрать за минуты.
- */
-export async function хешАдреса(): Promise<string> {
+export async function hashAddress(): Promise<string> {
     const h = await headers();
 
-    // За обратным прокси настоящий адрес приходит в заголовке.
-    // Заголовку доверять можно только потому, что его выставляет
-    // наш собственный хостинг, а не отправитель.
-    const адрес =
+    const address =
         h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? h.get('x-real-ip') ?? 'неизвестен';
 
     return createHash('sha256')
-        .update(адрес + (process.env.AUTH_SECRET ?? ''))
+        .update(address + (process.env.AUTH_SECRET ?? ''))
         .digest('hex')
         .slice(0, 32);
 }
 
-/* ------------------------------------------------------------------ *
- * ЗАЩИТА ОТ СПАМА
- * ------------------------------------------------------------------ */
+const MAX_PER_HOUR = 3;
+const MIN_PER_SEC = 3;
 
-const МАКСИМУМ_ЗА_ЧАС = 3;
-const МИНИМУМ_СЕКУНД_НА_ЗАПОЛНЕНИЕ = 3;
+export type declineDefence = { skip: false; reason: string };
+export type aswerDefence = { skip: true } | declineDefence;
 
-export type ОтказЗащиты = { пропустить: false; причина: string };
-export type РешениеЗащиты = { пропустить: true } | ОтказЗащиты;
-
-/**
- * Три проверки, от дешёвой к дорогой.
- *
- * 1. Поле-приманка. В форме есть input, скрытый от глаз. Человек его
- *    не видит и не заполнит. Простой бот заполняет все поля подряд.
- *
- * 2. Время заполнения. В форме лежит метка времени её показа. Отправка
- *    через секунду после загрузки — не человек: люди столько печатают ник.
- *
- * 3. Частота. Не больше трёх заявок в час с одного адреса. Отсекает того,
- *    кто прошёл первые две и решил долбить руками.
- *
- * Ни одна не останавливает того, кто целенаправленно захочет обойти.
- * Они и не должны: цель — отсечь автоматический мусор, а с адресными
- * выходками справится модерация.
- */
-export async function проверитьЗащиту(form: FormData): Promise<РешениеЗащиты> {
-    // 1. Приманка
-    const приманка = String(form.get('website') ?? '');
-    if (приманка.trim() !== '') {
-        return { пропустить: false, причина: 'Заявка не отправлена' };
+export async function checkDefence(form: FormData): Promise<aswerDefence> {
+    const trap = String(form.get('website') ?? '');
+    if (trap.trim() !== '') {
+        return { skip: false, reason: 'Заявка не отправлена' };
     }
 
-    // 2. Слишком быстро
-    const метка = Number(form.get('открытоВ'));
-    if (Number.isFinite(метка) && метка > 0) {
-        const секунд = (Date.now() - метка) / 1000;
-        if (секунд < МИНИМУМ_СЕКУНД_НА_ЗАПОЛНЕНИЕ) {
-            return { пропустить: false, причина: 'Слишком быстро — попробуйте ещё раз' };
+    const hint = Number(form.get('открытоВ'));
+    if (Number.isFinite(hint) && hint > 0) {
+        const sec = (Date.now() - hint) / 1000;
+        if (sec < MIN_PER_SEC) {
+            return { skip: false, reason: 'Слишком быстро — попробуйте ещё раз' };
         }
     }
 
-    // 3. Частота
-    const ipHash = await хешАдреса();
-    const часНазад = new Date(Date.now() - 60 * 60 * 1000);
+    const ipHash = await hashAddress();
+    const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-    const недавних = await prisma.submission.count({
-        where: { ipHash, createdAt: { gte: часНазад } },
+    const resent = await prisma.submission.count({
+        where: { ipHash, createdAt: { gte: hourAgo } },
     });
 
-    if (недавних >= МАКСИМУМ_ЗА_ЧАС) {
+    if (resent >= MAX_PER_HOUR) {
         return {
-            пропустить: false,
-            причина: `Не больше ${МАКСИМУМ_ЗА_ЧАС} заявок в час. Попробуйте позже.`,
+            skip: false,
+            reason: `Не больше ${MAX_PER_HOUR} заявок в час. Попробуйте позже.`,
         };
     }
 
-    return { пропустить: true };
+    return { skip: true };
 }
-
-/* ------------------------------------------------------------------ *
- * ЧТЕНИЕ ДЛЯ АДМИНКИ
- * ------------------------------------------------------------------ */
-
-/** Сколько заявок ждёт рассмотрения — для значка в меню. */
-export async function ждутРассмотрения(): Promise<number> {
+export async function waitCheck(): Promise<number> {
     return prisma.submission.count({ where: { status: 'PENDING' } });
 }

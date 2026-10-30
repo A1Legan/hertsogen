@@ -1,13 +1,3 @@
-/**
- * Проверка ключей Twitch.
- *
- * Client ID и Client Secret выглядят одинаково — тридцать символов
- * латиницы с цифрами. Понять, что есть что, можно только попробовав.
- *
- * Скрипт берёт значения из .env, пробует получить токен, и если не вышло —
- * пробует наоборот. Так мы узнаём порядок фактом, а не догадкой.
- */
-
 const первый = process.env.TWITCH_CLIENT_ID;
 const второй = process.env.TWITCH_CLIENT_SECRET;
 
@@ -18,7 +8,7 @@ if (!первый || !второй) {
     process.exit(1);
 }
 
-async function попробовать(id: string, secret: string): Promise<string | null> {
+async function tryFun(id: string, secret: string): Promise<string | null> {
     const res = await fetch('https://id.twitch.tv/oauth2/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -37,13 +27,13 @@ async function попробовать(id: string, secret: string): Promise<strin
 
 console.log('Пробую как есть...');
 
-if (await попробовать(первый, второй)) {
+if (await tryFun(первый, второй)) {
     console.log('\n  Порядок верный, ничего менять не надо.');
     console.log('  Twitch выдал токен — ключи рабочие.');
 } else {
     console.log('Не вышло. Пробую наоборот...');
 
-    if (await попробовать(второй, первый)) {
+    if (await tryFun(второй, первый)) {
         console.log('\n  Значения перепутаны местами — поменяй их в .env.');
         console.log('  То, что сейчас в TWITCH_CLIENT_ID, должно быть в SECRET, и наоборот.');
     } else {

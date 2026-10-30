@@ -14,20 +14,18 @@ import {
     TableRow,
 } from '@/src/components/ui/table';
 import { DeleteButton } from '@/src/components/admin/DeleteButton';
-import { удалитьУровень, сдвинуть } from './actions';
+import { deleteLevel as deleteLevel, move } from './actions';
 
 export const metadata: Metadata = { title: 'Свой рейтинг', robots: { index: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function AdminRankingPage() {
-    // Позиции из базы, названия из API — как и на сайте.
-    // Копии чужих данных у нас нигде нет, склейка каждый раз свежая.
-    const [записи, уровни] = await Promise.all([
+    const [records, levels] = await Promise.all([
         prisma.communityRank.findMany({ orderBy: { position: 'asc' } }),
         getLevels(),
     ]);
 
-    const поId = new Map(уровни.map((l) => [l.id, l]));
+    const forId = new Map(levels.map((l) => [l.id, l]));
 
     return (
         <>
@@ -44,7 +42,7 @@ export default async function AdminRankingPage() {
                 </Link>
             </div>
 
-            {записи.length === 0 ? (
+            {records.length === 0 ? (
                 <Card className="p-12 text-center">
                     <p className="mb-4 text-muted-foreground">
                         Список пуст. Первый добавленный уровень станет топ-1.
@@ -70,47 +68,40 @@ export default async function AdminRankingPage() {
                         </TableHeader>
 
                         <TableBody>
-                            {записи.map((з, индекс) => {
-                                const уровень = поId.get(з.levelId);
+                            {records.map((z, index) => {
+                                const level = forId.get(z.levelId);
 
                                 return (
-                                    <TableRow key={з.levelId}>
+                                    <TableRow key={z.levelId}>
                                         <TableCell className="text-lg font-bold tabular-nums">
-                                            {з.position}
+                                            {z.position}
                                         </TableCell>
 
                                         <TableCell className="max-w-0">
-                                            {/*
-                                                Уровень мог исчезнуть из Global Demonlist —
-                                                их иногда удаляют из игры. На сайте такая
-                                                запись просто не показывается, поэтому
-                                                здесь про неё надо сказать прямо, иначе
-                                                человек не поймёт, почему список короче.
-                                            */}
-                                            {уровень ? (
+                                            {level ? (
                                                 <>
                                                     <div className="truncate font-medium">
-                                                        {уровень.name}
+                                                        {level.name}
                                                     </div>
                                                     <div className="truncate text-xs text-muted-foreground">
-                                                        {уровень.builder}
-                                                        {з.note && ` • ${з.note}`}
+                                                        {level.builder}
+                                                        {z.note && ` • ${z.note}`}
                                                     </div>
                                                 </>
                                             ) : (
                                                 <div className="text-sm text-red-600">
-                                                    Уровня id {з.levelId} больше нет в Global
+                                                    Уровня id {z.levelId} больше нет в Global
                                                     Demonlist — на сайте он не показывается
                                                 </div>
                                             )}
                                         </TableCell>
 
                                         <TableCell className="tabular-nums text-muted-foreground">
-                                            {уровень ? `#${уровень.position}` : '—'}
+                                            {level ? `#${level.position}` : '—'}
                                         </TableCell>
 
                                         <TableCell className="tabular-nums">
-                                            {з.requirement}%
+                                            {z.requirement}%
                                         </TableCell>
 
                                         <TableCell>
@@ -118,14 +109,14 @@ export default async function AdminRankingPage() {
                                                 <form
                                                     action={async () => {
                                                         'use server';
-                                                        await сдвинуть(з.levelId, 'вверх');
+                                                        await move(z.levelId, 'вверх');
                                                     }}
                                                 >
                                                     <Button
                                                         type="submit"
                                                         variant="ghost"
                                                         size="icon"
-                                                        disabled={индекс === 0}
+                                                        disabled={index === 0}
                                                         aria-label="Поднять выше"
                                                     >
                                                         <ChevronUp className="size-4" />
@@ -135,14 +126,14 @@ export default async function AdminRankingPage() {
                                                 <form
                                                     action={async () => {
                                                         'use server';
-                                                        await сдвинуть(з.levelId, 'вниз');
+                                                        await move(z.levelId, 'вниз');
                                                     }}
                                                 >
                                                     <Button
                                                         type="submit"
                                                         variant="ghost"
                                                         size="icon"
-                                                        disabled={индекс === записи.length - 1}
+                                                        disabled={index === records.length - 1}
                                                         aria-label="Опустить ниже"
                                                     >
                                                         <ChevronDown className="size-4" />
@@ -150,7 +141,7 @@ export default async function AdminRankingPage() {
                                                 </form>
 
                                                 <Link
-                                                    href={`/admin/ranking/${з.levelId}`}
+                                                    href={`/admin/ranking/${z.levelId}`}
                                                     aria-label="Править"
                                                     className={buttonVariants({
                                                         variant: 'ghost',
@@ -161,11 +152,11 @@ export default async function AdminRankingPage() {
                                                 </Link>
 
                                                 <DeleteButton
-                                                    название={уровень?.name ?? `id ${з.levelId}`}
-                                                    что="Уровень"
+                                                    name={level?.name ?? `id ${z.levelId}`}
+                                                    what="Уровень"
                                                     action={async () => {
                                                         'use server';
-                                                        await удалитьУровень(з.levelId);
+                                                        await deleteLevel(z.levelId);
                                                     }}
                                                 />
                                             </div>

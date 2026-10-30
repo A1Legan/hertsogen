@@ -3,41 +3,37 @@ import { Input } from '@/src/components/ui/input';
 import { Label } from '@/src/components/ui/label';
 import { Switch } from '@/src/components/ui/switch';
 import { Button, buttonVariants } from '@/src/components/ui/button';
-import { НАЗВАНИЯ_СТРАН, читаемаяСтрана } from '@/src/lib/countries';
-import { процентИзНазвания as подсказкаПроцента } from '@/src/lib/live';
+import { COUNTRY_NAME, haveCountry } from '@/src/lib/countries';
+import { percentPerName} from '@/src/lib/live';
+import { LevelPicker } from '@/src/components/LevelPicker';
 
-export type ЗначенияСтрима = {
+const ADMIN_FIELD =
+    'h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring';
+
+export type LiveMessage = {
     playerName: string;
     playerCountry: string;
+    levelId: number | null;
     levelName: string;
+    levelPosition?: number | null;
+    levelBuilder?: string | null;
     progress: number;
     url: string;
     isLive: boolean;
     sortOrder: number;
     twitchLogin: string | null;
     youtubeChannelId: string | null;
-    /** Найденная трансляция — заполняется само, показываем для сведения */
     youtubeVideoId?: string | null;
-    /** Название трансляции с площадки — из него предлагается процент */
     streamTitle?: string | null;
-    /** Личная ссылка стримера для обновления процента */
     updateToken?: string | null;
 };
 
-/**
- * Форма стрима — одна на создание и на правку, как у новостей.
- *
- * Страна выбирается из списка, а не вводится руками: названия должны
- * совпадать с форматом Global Demonlist ('United-States' через дефис),
- * иначе флаг не найдётся. Заставлять человека это помнить — верный
- * способ получить пустые флаги и непонятно почему.
- */
 export function StreamForm({
     action,
-    стрим,
+    live: live,
 }: {
     action: (form: FormData) => Promise<void>;
-    стрим?: ЗначенияСтрима;
+    live?: LiveMessage;
 }) {
     return (
         <form action={action} className="space-y-5">
@@ -49,7 +45,7 @@ export function StreamForm({
                         name="playerName"
                         required
                         maxLength={100}
-                        defaultValue={стрим?.playerName ?? ''}
+                        defaultValue={live?.playerName ?? ''}
                         placeholder="Zoink"
                     />
                 </div>
@@ -59,13 +55,13 @@ export function StreamForm({
                     <select
                         id="playerCountry"
                         name="playerCountry"
-                        defaultValue={стрим?.playerCountry ?? 'Unknown'}
+                        defaultValue={live?.playerCountry ?? 'Unknown'}
                         className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                     >
                         <option value="Unknown">— не указана —</option>
-                        {НАЗВАНИЯ_СТРАН.map((страна) => (
+                        {COUNTRY_NAME.map((страна) => (
                             <option key={страна} value={страна}>
-                                {читаемаяСтрана(страна)}
+                                {haveCountry(страна)}
                             </option>
                         ))}
                     </select>
@@ -76,15 +72,27 @@ export function StreamForm({
             </div>
 
             <div className="space-y-2">
-                <Label htmlFor="levelName">Уровень</Label>
-                <Input
-                    id="levelName"
-                    name="levelName"
-                    required
-                    maxLength={150}
-                    defaultValue={стрим?.levelName ?? ''}
-                    placeholder="Society"
+                <Label htmlFor="поиск-уровня">Уровень</Label>
+                <LevelPicker
+                    fieldClass={ADMIN_FIELD}
+                    chosed={
+                        live?.levelId
+                            ? {
+                                    id: live.levelId,
+                                    name: live.levelName,
+                                    position: live.levelPosition ?? 0,
+                                    builder: live.levelBuilder ?? '',
+                            }
+                            : undefined
+                    }
                 />
+                {live && !live.levelId && (
+                    <p className="text-xs text-muted-foreground">
+                        Сейчас: «{live.levelName}». Уровень не привязан к списку,
+                        поэтому запись не видна на его странице — выберите уровень,
+                        чтобы это исправить.
+                    </p>
+                )}
             </div>
 
             <div className="grid gap-5 sm:grid-cols-2">
@@ -97,7 +105,7 @@ export function StreamForm({
                         required
                         min={0}
                         max={100}
-                        defaultValue={стрим?.progress ?? 0}
+                        defaultValue={live?.progress ?? 0}
                     />
                     <p className="text-xs text-muted-foreground">
                         Лучший результат игрока на этом уровне
@@ -112,7 +120,7 @@ export function StreamForm({
                         name="sortOrder"
                         min={0}
                         max={9999}
-                        defaultValue={стрим?.sortOrder ?? 0}
+                        defaultValue={live?.sortOrder ?? 0}
                     />
                     <p className="text-xs text-muted-foreground">
                         Меньше число — выше в списке. Одинаковые сортируются по проценту
@@ -128,7 +136,7 @@ export function StreamForm({
                     name="url"
                     required
                     maxLength={300}
-                    defaultValue={стрим?.url ?? ''}
+                    defaultValue={live?.url ?? ''}
                     placeholder="https://www.twitch.tv/..."
                 />
                 <p className="text-xs text-muted-foreground">
@@ -153,7 +161,7 @@ export function StreamForm({
                             name="twitchLogin"
                             maxLength={60}
                             placeholder="zoink"
-                            defaultValue={стрим?.twitchLogin ?? ''}
+                            defaultValue={live?.twitchLogin ?? ''}
                         />
                         <p className="text-xs text-muted-foreground">Указывается один раз</p>
                     </div>
@@ -165,7 +173,7 @@ export function StreamForm({
                             name="youtubeChannel"
                             maxLength={200}
                             placeholder="https://youtube.com/@ник"
-                            defaultValue={стрим?.youtubeChannelId ?? ''}
+                            defaultValue={live?.youtubeChannelId ?? ''}
                         />
                         <p className="text-xs text-muted-foreground">
                             Ссылка на канал или @ник. Тоже указывается один раз
@@ -173,17 +181,17 @@ export function StreamForm({
                     </div>
                 </div>
 
-                {стрим?.streamTitle && (
+                {live?.streamTitle && (
                     <div className="rounded border bg-muted/40 p-3">
                         <p className="mb-1 text-xs font-medium uppercase text-muted-foreground">
                             Название трансляции при последней проверке
                         </p>
-                        <p className="text-sm">{стрим.streamTitle}</p>
-                        {подсказкаПроцента(стрим.streamTitle) !== null && (
+                        <p className="text-sm">{live.streamTitle}</p>
+                        {percentPerName(live.streamTitle) !== null && (
                             <p className="mt-2 text-xs text-muted-foreground">
                                 В названии нашлось{' '}
                                 <span className="font-bold text-foreground">
-                                    {подсказкаПроцента(стрим.streamTitle)}%
+                                    {percentPerName(live.streamTitle)}%
                                 </span>{' '}
                                 — впишите вручную, если это тот самый процент
                             </p>
@@ -193,7 +201,7 @@ export function StreamForm({
             </div>
 
             <div className="flex items-center gap-3 rounded-lg border p-4">
-                <Switch id="isLive" name="isLive" defaultChecked={стрим?.isLive ?? false} />
+                <Switch id="isLive" name="isLive" defaultChecked={live?.isLive ?? false} />
                 <div>
                     <Label htmlFor="isLive">Сейчас в эфире</Label>
                     <p className="text-xs text-muted-foreground">
@@ -202,11 +210,11 @@ export function StreamForm({
                 </div>
             </div>
 
-            {стрим?.updateToken && (
+            {live?.updateToken && (
                 <div className="space-y-2 rounded-lg border border-orange-200 bg-orange-50 p-4">
                     <p className="text-sm font-medium">Личная ссылка стримера</p>
                     <code className="block break-all rounded bg-white px-3 py-2 text-xs">
-                        /update/{стрим.updateToken}
+                        /update/{live.updateToken}
                     </code>
                     <p className="text-xs text-muted-foreground">
                         Отправьте её игроку — по ней он меняет свой процент сам, без входа

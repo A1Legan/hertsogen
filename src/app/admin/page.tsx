@@ -15,8 +15,7 @@ export const metadata: Metadata = { title: 'Обзор', robots: { index: false 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {
-    // Четыре счётчика одним заходом вместо четырёх подряд
-    const [опубликовано, черновиков, стримов, вЭфире, рейтинг] = await Promise.all([
+    const [created, archived, lives, inLive, rank] = await Promise.all([
         prisma.news.count({ where: { published: true } }),
         prisma.news.count({ where: { published: false } }),
         prisma.stream.count(),
@@ -32,49 +31,49 @@ export default async function AdminPage() {
             </p>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <ПлиткаРаздела
+                <SectionTile
                     href="/admin/news"
                     icon={Newspaper}
                     title="Новости"
-                    главное={String(опубликовано)}
-                    подпись="опубликовано"
-                    значок={черновиков > 0 ? `${черновиков} в черновиках` : null}
+                    main={String(created)}
+                    signature="опубликовано"
+                    image={archived > 0 ? `${archived} в черновиках` : null}
                 />
-                <ПлиткаРаздела
+                <SectionTile
                     href="/admin/streams"
                     icon={Radio}
                     title="Стримы"
-                    главное={String(стримов)}
-                    подпись="в списке"
-                    значок={вЭфире > 0 ? `${вЭфире} в эфире` : null}
+                    main={String(lives)}
+                    signature="в списке"
+                    image={inLive > 0 ? `${inLive} в эфире` : null}
                 />
-                <ПлиткаРаздела
+                <SectionTile
                     href="/admin/ranking"
                     icon={ListOrdered}
                     title="Свой рейтинг"
-                    главное={String(рейтинг)}
-                    подпись="уровней"
-                    значок={рейтинг === 0 ? 'пусто' : null}
+                    main={String(rank)}
+                    signature="уровней"
+                    image={rank === 0 ? 'пусто' : null}
                 />
             </div>
         </>
     );
 }
 
-function ПлиткаРаздела({
+function SectionTile({
     href,
     icon: Icon,
     title,
-    главное,
-    подпись,
-    значок,
+    main,
+    signature,
+    image,
 }: {
     href: string;
     icon: React.ComponentType<{ className?: string }>;
     title: string;
-    главное: string;
-    подпись: string;
-    значок: string | null;
+    main: string;
+    signature: string;
+    image: string | null;
 }) {
     return (
         <Link href={href} className="group">
@@ -85,13 +84,13 @@ function ПлиткаРаздела({
                         {title}
                         <ArrowRight className="ml-auto size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                     </CardTitle>
-                    <CardDescription>{подпись}</CardDescription>
+                    <CardDescription>{signature}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex items-end gap-3">
-                    <span className="text-3xl font-bold tabular-nums">{главное}</span>
-                    {значок && (
+                    <span className="text-3xl font-bold tabular-nums">{main}</span>
+                    {image && (
                         <Badge variant="secondary" className="mb-1">
-                            {значок}
+                            {image}
                         </Badge>
                     )}
                 </CardContent>

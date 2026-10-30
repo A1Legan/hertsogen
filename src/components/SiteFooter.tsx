@@ -46,13 +46,6 @@ export function SiteFooter() {
                     Privacy Policy
                 </Link>
             </div>
-
-            {/*
-                Тот же mx-auto max-w-6xl px-6, что и у блока выше.
-                Иначе копирайт прижимается к краю экрана, а логотип стоит
-                в центрированной колонке — и на широком мониторе они
-                оказываются на разных вертикалях.
-            */}
             <div className="mx-auto mt-8 max-w-6xl px-6">
                 <p className="text-center text-sm text-gray-500 md:text-left">
                     © 2026 H&amp;CR hertzogen. Данные списка — Global Demonlist.

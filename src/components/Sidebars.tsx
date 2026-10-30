@@ -4,14 +4,6 @@ import { getStreams } from '@/src/lib/streams';
 import { getNews } from '@/src/lib/news';
 import { Flag } from './Flag';
 
-/**
- * Четыре блока боковых колонок.
- *
- * Каждый — самостоятельный серверный компонент: сам берёт свои данные,
- * страницам ничего передавать не нужно. Next при сборке заметит, что
- * getLevels() вызывается из нескольких мест, и сходит в API один раз.
- */
-
 function SidebarBlock({
     title,
     href,

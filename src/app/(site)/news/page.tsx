@@ -7,7 +7,6 @@ export const metadata: Metadata = {
     description: 'Новости демонлиста и сайта H&CR.',
 };
 
-/** Новости живут в своей БД и меняются чаще списка — обновляем раз в 10 минут. */
 export const revalidate = 600;
 
 export default async function NewsPage() {
@@ -26,12 +25,6 @@ export default async function NewsPage() {
                         className="animate-card-entry mb-6 overflow-hidden border border-gray-200 bg-white shadow-sm"
                     >
                         {n.image && (
-                            // Обычный img, а не next/image. Картинки лежат
-                            // на нашем же диске и отдаются обработчиком
-                            // /uploads. Оптимизация next/image тут только
-                            // добавила бы работы серверу, у которого всего
-                            // гигабайт памяти, — а картинок единицы.
-                            // eslint-disable-next-line @next/next/no-img-element
                             <img
                                 src={n.image}
                                 alt=""

@@ -6,11 +6,10 @@ import { getPlayers, getPlayerProfile, type PlayerRecord } from '@/src/lib/demon
 import { avatarUrl } from '@/src/lib/avatars';
 import { Shell } from '@/src/components/Shell';
 import { Flag } from '@/src/components/Flag';
-import { Hint, ПОЯСНЕНИЯ } from '@/src/components/Hint';
+import { Hint, SECRET } from '@/src/components/Hint';
 
 export const revalidate = 3600;
 
-/** Заранее собираем страницы первых 500 игроков, остальные — по заходу. */
 export async function generateStaticParams() {
     const players = await getPlayers(500);
     return [...players.keys()].map((id) => ({ id: String(id) }));
@@ -42,7 +41,7 @@ export default async function PlayerPage({
 
     if (!profile) notFound();
 
-    const всегоПройдено =
+    const allCompleted =
         profile.main.length +
         profile.extended.length +
         profile.advanced.length +
@@ -90,13 +89,13 @@ export default async function PlayerPage({
 
             <div className="p-4 sm:p-6">
                 <dl className="mb-6 grid grid-cols-3 gap-3">
-                    <Показатель label="Место" value={profile.rank ? `#${profile.rank}` : '—'} акцент />
-                    <Показатель
+                    <Inicator label="Место" value={profile.rank ? `#${profile.rank}` : '—'} varn />
+                    <Inicator
                         label="Очки"
                         value={profile.points.toFixed(2)}
-                        hint={ПОЯСНЕНИЯ.points}
+                        hint={SECRET.points}
                     />
-                    <Показатель label="Пройдено" value={String(всегоПройдено)} />
+                    <Inicator label="Пройдено" value={String(allCompleted)} />
                 </dl>
 
                 {profile.hardest && (
@@ -113,40 +112,40 @@ export default async function PlayerPage({
                     </div>
                 )}
 
-                <СписокРекордов
+                <RecordList
                     title="Верифицировал"
-                    hint={ПОЯСНЕНИЯ.verifier}
+                    hint={SECRET.verifier}
                     records={profile.verified}
-                    пустоТекст="Этот игрок не верифицировал уровней."
-                    открытоПоУмолчанию
+                    clearText="Этот игрок не верифицировал уровней."
+                    defaultOpened
                 />
 
-                <СписокРекордов
+                <RecordList
                     title="Основной список"
                     hint="Пройденные уровни с 1 по 150 место. Только они приносят очки в рейтинг."
                     records={profile.main}
-                    открытоПоУмолчанию
+                    defaultOpened
                 />
 
-                <СписокРекордов
+                <RecordList
                     title="Расширенный список"
-                    hint={ПОЯСНЕНИЯ.extended}
+                    hint={SECRET.extended}
                     records={profile.extended}
                 />
 
-                <СписокРекордов
+                <RecordList
                     title="Advanced"
                     hint="Уровни ниже расширенного списка."
                     records={profile.advanced}
                 />
 
-                <СписокРекордов
+                <RecordList
                     title="Unbounded"
                     hint="Самая дальняя часть списка."
                     records={profile.unbounded}
                 />
 
-                <СписокРекордов
+                <RecordList
                     title="Прогрессы"
                     hint="Уровни, которые игрок ещё не прошёл целиком, но показал результат."
                     records={profile.progress}
@@ -156,16 +155,16 @@ export default async function PlayerPage({
     );
 }
 
-function Показатель({
+function Inicator({
     label,
     value,
     hint,
-    акцент = false,
+    varn = false,
 }: {
     label: string;
     value: string;
     hint?: string;
-    акцент?: boolean;
+    varn?: boolean;
 }) {
     return (
         <div className="border border-gray-200 bg-white p-3 text-center">
@@ -173,33 +172,28 @@ function Показатель({
                 {label}
                 {hint && <Hint text={hint} />}
             </dt>
-            <dd className={`text-2xl font-black ${акцент ? 'text-orange-600' : 'text-gray-900'}`}>
+            <dd className={`text-2xl font-black ${varn ? 'text-orange-600' : 'text-gray-900'}`}>
                 {value}
             </dd>
         </div>
     );
 }
 
-/**
- * Раздел с прохождениями. Свёрнут по умолчанию — у топовых игроков
- * в разделе бывает под сотню уровней, и разворачивать их все сразу
- * значит превратить страницу в бесконечную простыню.
- */
-function СписокРекордов({
+function RecordList({
     title,
     hint,
     records,
-    пустоТекст,
-    открытоПоУмолчанию = false,
+    clearText,
+    defaultOpened = false,
 }: {
     title: string;
     hint: string;
     records: PlayerRecord[];
-    пустоТекст?: string;
-    открытоПоУмолчанию?: boolean;
+    clearText?: string;
+    defaultOpened?: boolean;
 }) {
     if (records.length === 0) {
-        if (!пустоТекст) return null; // пустой раздел просто не показываем
+        if (!clearText) return null;
         return (
             <div className="mb-4">
                 <h2 className="mb-2 text-sm font-bold uppercase text-gray-500">
@@ -207,14 +201,14 @@ function СписокРекордов({
                     <Hint text={hint} />
                 </h2>
                 <p className="border border-dashed border-gray-300 p-3 text-center text-sm text-gray-500">
-                    {пустоТекст}
+                    {clearText}
                 </p>
             </div>
         );
     }
 
     return (
-        <details open={открытоПоУмолчанию} className="group mb-4 border border-gray-200 bg-white">
+        <details open={defaultOpened} className="group mb-4 border border-gray-200 bg-white">
             <summary className="flex cursor-pointer list-none items-center justify-between p-3 hover:bg-gray-50 [&::-webkit-details-marker]:hidden">
                 <h2 className="text-sm font-bold uppercase text-gray-600">
                     {title}

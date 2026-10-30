@@ -4,56 +4,39 @@ import { useEffect, useState, useTransition } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Search, X, Loader2 } from 'lucide-react';
 
-/**
- * Поле поиска над списком.
- *
- * Запрос живёт в АДРЕСЕ (?q=...), а не в состоянии компонента. Из-за этого
- * найденное можно скинуть ссылкой, кнопка «назад» работает как ожидается,
- * а сама фильтрация происходит на сервере — списку не нужно приезжать
- * в браузер целиком.
- *
- * Печатаем мы быстрее, чем отвечает сервер, поэтому адрес меняется не на
- * каждую букву, а спустя 300 мс после последней. Иначе на слово из семи
- * букв ушло бы семь запросов, из которых нужен только последний.
- */
 export function SearchBox({
     placeholder,
-    подпись,
+    signature: signature,
 }: {
     placeholder: string;
-    /** Что читает вслух программа для незрячих: «Поиск уровней» и т.п. */
-    подпись: string;
+    signature: string;
 }) {
-    const параметры = useSearchParams();
-    const путь = usePathname();
-    const роутер = useRouter();
+    const params = useSearchParams();
+    const path = usePathname();
+    const router = useRouter();
 
-    const [текст, setТекст] = useState(параметры.get('q') ?? '');
-    const [идётЗагрузка, начать] = useTransition();
+    const [text, setText] = useState(params.get('q') ?? '');
+    const [uploading, start] = useTransition();
 
     useEffect(() => {
-        const вАдресе = параметры.get('q') ?? '';
-        if (текст === вАдресе) return; // ничего не изменилось
+        const inAddress = params.get('q') ?? '';
+        if (text === inAddress) return;
 
-        const таймер = setTimeout(() => {
-            const новые = new URLSearchParams(параметры);
+        const timer = setTimeout(() => {
+            const newNew = new URLSearchParams(params);
 
-            if (текст.trim()) новые.set('q', текст.trim());
-            else новые.delete('q');
+            if (text.trim()) newNew.set('q', text.trim());
+            else newNew.delete('q');
 
-            // Показ «ещё» сбрасываем: при новом запросе он бессмыслен,
-            // а оставшийся в адресе заставил бы грузить лишние страницы
-            новые.delete('n');
+            newNew.delete('n');
 
-            начать(() => {
-                // replace, а не push: иначе каждая буква оставила бы
-                // запись в истории, и «назад» пришлось бы жать раз двадцать
-                роутер.replace(`${путь}?${новые}`, { scroll: false });
+            start(() => {
+                router.replace(`${path}?${newNew}`, { scroll: false });
             });
         }, 300);
 
-        return () => clearTimeout(таймер);
-    }, [текст, параметры, путь, роутер]);
+        return () => clearTimeout(timer);
+    }, [text, params, path, router]);
 
     return (
         <div className="relative mb-4">
@@ -61,20 +44,20 @@ export function SearchBox({
 
             <input
                 type="search"
-                value={текст}
-                onChange={(e) => setТекст(e.target.value)}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
                 placeholder={placeholder}
-                aria-label={подпись}
+                aria-label={signature}
                 className="w-full border border-gray-300 bg-white py-2.5 pl-9 pr-9 text-sm focus:border-orange-500 focus:outline-none"
             />
 
-            {идётЗагрузка ? (
+            {uploading ? (
                 <Loader2 className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-gray-400" />
             ) : (
-                текст && (
+                text && (
                     <button
                         type="button"
-                        onClick={() => setТекст('')}
+                        onClick={() => setText('')}
                         aria-label="Очистить поиск"
                         className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-700"
                     >

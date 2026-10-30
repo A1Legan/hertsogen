@@ -2,15 +2,12 @@ import { z } from 'zod';
 
 const API = 'https://api.demonlist.org';
 
-// Просто схема для БДшки
-
 const RawLevel = z.object({
     id: z.number(),
     ingame_id: z.number(),
     placement: z.number(),
     name: z.string(),
 
-  // Приходит СТРОКОЙ: "1000.00"
     points: z.coerce.number(),
 
     list_percent: z.number(),
@@ -49,49 +46,31 @@ const UserListResponse = z.object({
     }),
 });
 
-// Наш формат уровней
-
 export type Level = {
     id: number;
     gdId: number;
     position: number;
     name: string;
-    points: number; // уже число, не строка
+    points: number;
     requirement: number;
     lengthSec: number;
     builder: string;
     verifier: { id: number; name: string };
     videoUrl: string | null;
-    /** null = видео нет, превью взять неоткуда. Рисуем нейтральный блок. */
     thumbnail: string | null;
 };
-
-// У некоторых уровней в Global траблы с ссылками. (Для примера щас существует
-// PSYCHOPATH. У него ссылка как бы есть, но она без https://youtube.com/..., так
-// что если тыкнуть на иконку видео в списке уровней, (не в профиле уровня, это важно)
-// то можно смело пойти нахуй просто) Поэтому из JSON файлика уровней мы будем брать
-// только айдишник видео и поставлять к собственной ссылке
-
-// Заглушки для превью уровня нет намеренно: у уровней своей картинки
-// не существует в принципе, превью — это кадр из видео. Нет видео —
-// нет и превью, рисуем серый блок. (default.jpg в старом репозитории —
-// это заглушка для АВАТАРОК игроков, к уровням отношения не имеет.)
 
 export function youtubeId(raw: string): string | null {
     const s = String(raw).trim();
 
-  // youtu.be/ID, ?v=ID, /live/ID, /embed/ID, /shorts/ID
     const inUrl = s.match(/(?:youtu\.be\/|[?&]v=|\/live\/|\/embed\/|\/shorts\/)([\w-]{11})/);
     if (inUrl) return inUrl[1];
 
-  // голый идентификатор, иногда с хвостом вида ?si=...
     const bare = s.match(/^([\w-]{11})(?:[?&#].*)?$/);
     if (bare) return bare[1];
 
     return null;
 }
-
-// Теперь переделаем полученный уровень в удобный нам
 
 function toLevel(raw: z.infer<typeof RawLevel>): Level {
     const videoId = youtubeId(raw.verification_url);
@@ -114,15 +93,12 @@ function toLevel(raw: z.infer<typeof RawLevel>): Level {
     };
 }
 
-//Запрос с таймаутом
-
 const TIMEOUT_MS = 10_000;
 
 async function request(path: string, retries = 3): Promise<unknown> {
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= retries; attempt++) {
-        // Без таймаута зависший запрос будет висеть вечно и держать сборку
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -130,11 +106,6 @@ async function request(path: string, retries = 3): Promise<unknown> {
             const res = await fetch(API + path, {
                 signal: controller.signal,
                 headers: { 'User-Agent': 'h-cr/1.0 (+https://github.com/hertzzzzzz/h-cr)' },
-
-                // ВАЖНО. Без этой строки Next ничего не кэширует, и при сборке
-                // каждая из ~650 страниц сходила бы в API заново — тысячи
-                // запросов и бан по IP. С ней ответ берётся из кэша Next,
-                // а к чужому серверу мы обращаемся считанные разы.
                 next: { revalidate: 3600 },
             });
 
@@ -143,9 +114,6 @@ async function request(path: string, retries = 3): Promise<unknown> {
             return await res.json();
         } catch (err) {
         lastError = err;
-
-      // Пауза перед следующей попыткой растёт: 1с, 2с, 4с.
-      // Долбить упавший сервер без передышки — плохая идея.
 
         if (attempt < retries) {
             await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt));
@@ -158,39 +126,19 @@ async function request(path: string, retries = 3): Promise<unknown> {
     throw lastError;
 }
 
-// Чисто наше, для сайта
-
 export async function getLevels(): Promise<Level[]> {
     const json = await request('/level/classic/list');
 
-  // Вот здесь чужие данные проверяются и становятся нашими.
-  // Если API поменяется — упадёт ровно тут, с внятным сообщением,
-  // а не где-то в компоненте через три файла.
     const parsed = LevelListResponse.parse(json);
 
     return parsed.data.levels.map(toLevel);
 }
-
-
-
-/* ------------------------------------------------------------------ *
- * ИГРОКИ
- *
- * Лидерборд отдаётся страницами по 50 (больше сервер не принимает,
- * проверено: limit=100 и выше возвращают пустоту).
- * Всего аккаунтов ~12726, то есть 255 страниц на полную выгрузку.
- *
- * Поэтому по умолчанию берём только первую тысячу: этого хватает,
- * чтобы найти 90 верификаторов из 102 в топ-150 уровней.
- * Полная выгрузка — задача ночной синхронизации в БД, не сборки сайта.
- * ------------------------------------------------------------------ */
 
 export type Player = {
     id: number;
     name: string;
     rank: number;
     points: number;
-    /** Название страны как отдаёт API: 'United-States', 'Unknown' и т.д. */
     country: string;
 };
 
@@ -206,11 +154,6 @@ function toPlayer(raw: z.infer<typeof RawUser>): Player {
     };
 }
 
-/**
- * Возвращает словарь «id игрока -> игрок».
- * Map, а не массив: искать по id нужно для каждой из 150 карточек,
- * и перебор массива тут был бы лишней работой.
- */
 export async function getPlayers(limit = 1000): Promise<Map<number, Player>> {
     const players = new Map<number, Player>();
     let offset = 0;
@@ -222,7 +165,6 @@ export async function getPlayers(limit = 1000): Promise<Map<number, Player>> {
         const parsed = UserListResponse.parse(json);
         const users = parsed.data.users;
 
-        // Пустая страница = игроки кончились раньше лимита
         if (users.length === 0) break;
 
         for (const u of users) {
@@ -235,63 +177,34 @@ export async function getPlayers(limit = 1000): Promise<Map<number, Player>> {
     return players;
 }
 
-/** Топ игроков по местам — для страницы /players и сайдбара. */
 export async function getTopPlayers(count = 100): Promise<Player[]> {
     const players = await getPlayers(Math.max(count, PAGE_SIZE));
     return [...players.values()].sort((a, b) => a.rank - b.rank).slice(0, count);
 }
 
-/**
- * Поиск игрока по нику.
- *
- * Ищет САМ API — у /leaderboard/user/list есть параметр search. Это важно:
- * своими силами мы бы искали только среди загруженной тысячи, а всего
- * аккаунтов ~12726. Игрок с местом 5000 просто не нашёлся бы, и понять
- * почему было бы невозможно — ошибки-то нет, список пустой и всё.
- *
- * Совпадение по куску ника в любом месте и без учёта регистра:
- * 'ryan' находит и 'Ryanpecausa', и 'xteryan'. Проверено на живом API.
- */
 export async function searchPlayers(query: string, limit = 100): Promise<Player[]> {
-    const запрос = query.trim();
-    if (!запрос) return [];
+    const requestt = query.trim();
+    if (!requestt) return [];
 
-    const найденные: Player[] = [];
+    const founded: Player[] = [];
     let offset = 0;
 
-    while (найденные.length < limit) {
+    while (founded.length < limit) {
         const json = await request(
             `/leaderboard/user/list?limit=${PAGE_SIZE}&offset=${offset}` +
-                `&search=${encodeURIComponent(запрос)}`,
+                `&search=${encodeURIComponent(requestt)}`,
         );
         const parsed = UserListResponse.parse(json);
         const users = parsed.data.users;
 
-        if (users.length === 0) break; // совпадения кончились
+        if (users.length === 0) break;
 
-        найденные.push(...users.map(toPlayer));
+        founded.push(...users.map(toPlayer));
         offset += PAGE_SIZE;
     }
 
-    // Сортируем сами: API отдаёт совпадения в своём порядке,
-    // а человеку привычнее видеть сильных игроков сверху
-    return найденные.sort((a, b) => a.rank - b.rank).slice(0, limit);
+    return founded.sort((a, b) => a.rank - b.rank).slice(0, limit);
 }
-
-/* ------------------------------------------------------------------ *
- * ПРОФИЛЬ ИГРОКА  —  /user/get?id=
- *
- * Отдаёт пройденные уровни, разбитые по разделам списка.
- *
- * ВНИМАНИЕ: схема ниже нарочно мягкая. Схему уровней мы писали по отчёту
- * inspect.ts, прогнав все 1808 записей, и поэтому там всё обязательное.
- * А этот ответ я видел ровно один раз, у одного игрока. Значит про поля
- * ничего не известно: у новичка без прохождений разделов может не быть
- * вовсе, hardest может отсутствовать, uncompleted приходит null.
- *
- * Строгость схемы должна соответствовать тому, сколько данных ты проверил.
- * Когда прогонишь inspect.ts по сотне игроков — можно будет ужесточить.
- * ------------------------------------------------------------------ */
 
 const RawRecord = z.object({
     id: z.number(),
@@ -300,7 +213,7 @@ const RawRecord = z.object({
     video_url: z.string().nullish(),
 });
 
-const РазделСписка = z.array(RawRecord).nullish();
+const SectionList = z.array(RawRecord).nullish();
 
 const RawProfile = z.object({
     username: z.string(),
@@ -312,12 +225,12 @@ const RawProfile = z.object({
     levels: z
         .object({
             hardest: RawRecord.nullish(),
-            main: РазделСписка,
-            extended: РазделСписка,
-            advanced: РазделСписка,
-            unbounded: РазделСписка,
-            progress: РазделСписка,
-            verified: РазделСписка,
+            main: SectionList,
+            extended: SectionList,
+            advanced: SectionList,
+            unbounded: SectionList,
+            progress: SectionList,
+            verified: SectionList,
         })
         .nullish(),
 });
@@ -341,14 +254,11 @@ export type PlayerProfile = {
     points: number;
     country: string;
     isBanned: boolean;
-    /** Самый сложный пройденный уровень */
     hardest: PlayerRecord | null;
-    /** Пройденные, по разделам списка */
     main: PlayerRecord[];
     extended: PlayerRecord[];
     advanced: PlayerRecord[];
     unbounded: PlayerRecord[];
-    /** Незавершённые прогрессы */
     progress: PlayerRecord[];
     verified: PlayerRecord[];
 };
@@ -364,7 +274,6 @@ function toRecord(raw: z.infer<typeof RawRecord>): PlayerRecord {
     };
 }
 
-/** Профиль игрока со всеми его прохождениями. null, если игрока нет. */
 export async function getPlayerProfile(id: number): Promise<PlayerProfile | null> {
     let json: unknown;
 
@@ -379,7 +288,7 @@ export async function getPlayerProfile(id: number): Promise<PlayerProfile | null
 
     const d = parsed.data.data;
     const l = d.levels ?? {};
-    const раздел = (x: z.infer<typeof РазделСписка>) => (x ?? []).map(toRecord);
+    const type = (x: z.infer<typeof SectionList>) => (x ?? []).map(toRecord);
 
     return {
         id,
@@ -389,11 +298,11 @@ export async function getPlayerProfile(id: number): Promise<PlayerProfile | null
         country: d.country,
         isBanned: d.is_banned ?? false,
         hardest: l.hardest ? toRecord(l.hardest) : null,
-        main: раздел(l.main),
-        extended: раздел(l.extended),
-        advanced: раздел(l.advanced),
-        unbounded: раздел(l.unbounded),
-        progress: раздел(l.progress),
-        verified: раздел(l.verified),
+        main: type(l.main),
+        extended: type(l.extended),
+        advanced: type(l.advanced),
+        unbounded: type(l.unbounded),
+        progress: type(l.progress),
+        verified: type(l.verified),
     };
 }

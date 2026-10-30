@@ -5,35 +5,24 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/src/auth';
 import { prisma } from '@/src/lib/prisma';
-import { idКанала } from '@/src/lib/youtube';
+import { idChanel } from '@/src/lib/youtube';
 
-/**
- * Действия над стримами. Устроено так же, как actions.ts для новостей.
- *
- * Напоминание, почему проверка прав стоит в каждом действии: 'use server'
- * делает из функции сетевой адрес, на который можно постучаться напрямую,
- * минуя интерфейс. Middleware охраняет страницы, а не действия.
- */
-
-async function проверитьДоступ() {
+async function checkAllow() {
     const сессия = await auth();
     if (!сессия?.user?.email) throw new Error('Нет доступа');
     return сессия.user.email;
 }
 
-const ФормаСтрима = z.object({
+const LiveForm = z.object({
     playerName: z.string().trim().min(1, 'Ник обязателен').max(100),
     playerCountry: z.string().trim().min(1).max(60),
-    levelName: z.string().trim().min(1, 'Название уровня обязательно').max(150),
-    // Из формы всё приходит строкой, поэтому coerce — как с очками из API
+    levelId: z.coerce.number({ message: 'Выберите уровень' }).int().positive(),
+    levelName: z.string().trim().min(1, 'Выберите уровень').max(150),
     progress: z.coerce.number().int().min(0).max(100),
     url: z.string().trim().url('Нужна полная ссылка, вместе с https://').max(300),
     isLive: z.boolean(),
     sortOrder: z.coerce.number().int().min(0).max(9999),
-
-    /// Ник на Twitch — по нему статус эфира обновляется сам
     twitchLogin: z.string().trim().max(60).nullable(),
-    /// Канал YouTube: ссылка, @ник или сам идентификатор UC...
     youtubeChannel: z.string().trim().max(200).nullable(),
 });
 
@@ -42,30 +31,23 @@ const пусто = (v: FormDataEntryValue | null) => {
     return s === '' ? null : s;
 };
 
-async function разобратьФорму(form: FormData) {
-    const данные = ФормаСтрима.parse({
+async function checkForm(form: FormData) {
+    const data = LiveForm.parse({
         playerName: form.get('playerName'),
         playerCountry: form.get('playerCountry'),
+        levelId: form.get('levelId'),
         levelName: form.get('levelName'),
         progress: form.get('progress'),
         url: form.get('url'),
-        // Невыбранный переключатель в форме не приходит вообще
         isLive: form.get('isLive') === 'on',
         sortOrder: form.get('sortOrder') || 0,
         twitchLogin: пусто(form.get('twitchLogin')),
         youtubeChannel: пусто(form.get('youtubeChannel')),
     });
-
-    // Канал превращаем в идентификатор один раз, при сохранении.
-    // Человек вставит ссылку или @ник — помнить UC... наизусть незачем.
-    //
-    // Если разобрать не вышло, отказываем с объяснением. Раньше в таком
-    // случае молча записывался null: ошибки нет, отслеживания тоже нет,
-    // и понять почему невозможно.
     let youtubeChannelId: string | null = null;
 
-    if (данные.youtubeChannel) {
-        youtubeChannelId = await idКанала(данные.youtubeChannel);
+    if (data.youtubeChannel) {
+        youtubeChannelId = await idChanel(data.youtubeChannel);
 
         if (!youtubeChannelId) {
             throw new Error(
@@ -77,54 +59,63 @@ async function разобратьФорму(form: FormData) {
         }
     }
 
-    const { youtubeChannel: _, ...остальное } = данные;
+    const { youtubeChannel: _, ...more } = data;
 
     return {
-        ...остальное,
-        // Ник Twitch приводим к нижнему регистру: сравнивать с ответом
-        // площадки проще, когда обе стороны в одном виде
-        twitchLogin: данные.twitchLogin?.toLowerCase() ?? null,
+        ...more,
+        twitchLogin: data.twitchLogin?.toLowerCase() ?? null,
         youtubeChannelId,
     };
 }
-
-function обновитьСайт() {
+function updateSite(...levels: (number | null | undefined)[]) {
     revalidatePath('/');
     revalidatePath('/streams');
     revalidatePath('/admin/streams');
+
+    for (const levelId of new Set(levels)) {
+        if (levelId) revalidatePath(`/levels/${levelId}`);
+    }
 }
 
-export async function создатьСтрим(form: FormData) {
-    await проверитьДоступ();
-    await prisma.stream.create({ data: await разобратьФорму(form) });
-    обновитьСайт();
+export async function createLive(form: FormData) {
+    await checkAllow();
+
+    const data = await checkForm(form);
+    await prisma.stream.create({ data: data });
+
+    updateSite(data.levelId);
     redirect('/admin/streams');
 }
 
-export async function обновитьСтрим(id: string, form: FormData) {
-    await проверитьДоступ();
-    await prisma.stream.update({ where: { id }, data: await разобратьФорму(form) });
-    обновитьСайт();
+export async function updateStream(id: string, form: FormData) {
+    await checkAllow();
+
+    const before = await prisma.stream.findUnique({ where: { id } });
+    const data = await checkForm(form);
+
+    await prisma.stream.update({ where: { id }, data: data });
+
+    updateSite(before?.levelId, data.levelId);
     redirect('/admin/streams');
 }
 
-export async function удалитьСтрим(id: string) {
-    await проверитьДоступ();
+export async function deleteLive(id: string) {
+    await checkAllow();
+    const live = await prisma.stream.findUnique({ where: { id } });
     await prisma.stream.delete({ where: { id } });
-    обновитьСайт();
+
+    updateSite(live?.levelId);
 }
+export async function changeLive(id: string) {
+    await checkAllow();
 
-/** Быстрое переключение «в эфире» прямо из списка. */
-export async function переключитьЭфир(id: string) {
-    await проверитьДоступ();
-
-    const стрим = await prisma.stream.findUnique({ where: { id } });
-    if (!стрим) return;
+    const live = await prisma.stream.findUnique({ where: { id } });
+    if (!live) return;
 
     await prisma.stream.update({
         where: { id },
-        data: { isLive: !стрим.isLive },
+        data: { isLive: !live.isLive },
     });
 
-    обновитьСайт();
+    updateSite(live.levelId);
 }

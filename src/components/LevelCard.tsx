@@ -2,20 +2,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { Level, Player } from '@/src/lib/demonlist';
 import { Flag } from './Flag';
-import { Hint, ПОЯСНЕНИЯ } from './Hint';
+import { Hint, SECRET } from './Hint';
 
-/**
- * Карточка уровня. Как в прототипе: подробности спрятаны, раскрываются
- * по клику, у первого места открыты сразу.
- *
- * Сворачивание сделано на <details>/<summary> — это встроенные теги HTML.
- * В старом сайте для того же был обработчик onclick с ручным пересчётом
- * высоты; здесь всё делает браузер, работает без JavaScript и доступно
- * с клавиатуры.
- *
- * players — словарь для флага верификатора. Из 102 верификаторов топ-150
- * в первой тысяче лидерборда находится 90, остальные останутся без флага.
- */
 export function LevelCard({
     level,
     players,
@@ -26,7 +14,7 @@ export function LevelCard({
     index?: number;
 }) {
     const verifierCountry = players?.get(level.verifier.id)?.country ?? 'Unknown';
-    const вРасширенном = level.position > 150;
+    const inExtended = level.position > 150;
 
     return (
         <details
@@ -73,14 +61,8 @@ export function LevelCard({
                         <div className="text-xl font-bold text-orange-600 sm:text-2xl">
                             {level.points.toFixed(2)} pts
                         </div>
-                        {/*
-                            Очки показываем всегда. Расширенный список — это
-                            отдельный раздел, а не «уровни без наград»:
-                            #673 даёт 0.74, #1153 — 0.44, #1808 — 0.05.
-                            Проверено по ответу API, там нет ни одного нуля.
-                        */}
                         <div className="text-[10px] font-bold uppercase text-gray-400">
-                            {вРасширенном ? 'Extended list' : 'Очки'}
+                            {inExtended ? 'Extended list' : 'Очки'}
                         </div>
                     </div>
                     {/* Стрелка переворачивается, когда карточка раскрыта */}
@@ -92,7 +74,7 @@ export function LevelCard({
                 <div className="text-center sm:flex-1 sm:text-left">
                     <p className="mb-1 text-[10px] font-bold uppercase text-gray-400">
                         Верифицировал
-                        <Hint text={ПОЯСНЕНИЯ.verifier} />
+                        <Hint text={SECRET.verifier} />
                     </p>
                     <Link
                         href={`/players/${level.verifier.id}`}
@@ -104,7 +86,6 @@ export function LevelCard({
                 </div>
 
                 <div className="flex w-full flex-row items-center gap-2 sm:w-auto sm:flex-1 sm:justify-center">
-                    {/* У 5 уровней из 1808 ссылка битая — кнопки просто не будет */}
                     {level.videoUrl && (
                         <a
                             href={level.videoUrl}
@@ -126,7 +107,7 @@ export function LevelCard({
                 <div className="text-center sm:flex-1 sm:text-right">
                     <p className="mb-1 text-[10px] font-bold uppercase text-gray-400">
                         Нужно пройти
-                        <Hint text={ПОЯСНЕНИЯ.requirement} />
+                        <Hint text={SECRET.requirement} />
                     </p>
                     <div className="text-xl font-bold text-gray-800">{level.requirement}%</div>
                     <div className="text-xs font-bold text-gray-500">

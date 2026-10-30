@@ -3,7 +3,6 @@ import { signIn } from '@/src/auth';
 
 export const metadata: Metadata = {
     title: 'Вход',
-    // Не пускаем страницу входа в поисковики
     robots: { index: false, follow: false },
 };
 
@@ -15,12 +14,6 @@ export default function LoginPage() {
                     H<span className="text-orange-600">&amp;</span>CR
                 </h1>
                 <p className="mb-6 text-sm text-gray-500">Управление сайтом</p>
-
-                {/*
-                    Форма, а не кнопка с onClick: серверное действие работает
-                    без единой строчки клиентского JavaScript. Меньше кода —
-                    меньше мест, где можно ошибиться.
-                */}
                 <form
                     action={async () => {
                         'use server';

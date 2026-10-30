@@ -2,11 +2,11 @@
 
 import { useActionState } from 'react';
 import {
-    обновитьСвойПрогресс,
-    type СостояниеОбновления,
+    updateYourProgress,
+    type checkUpdate,
 } from '@/src/app/(site)/update/[token]/actions';
 
-const ПОЛЕ =
+const FIELD =
     'w-full rounded-md border border-gray-300 px-3 py-2 text-lg focus:border-orange-500 focus:outline-none';
 
 export function UpdateProgressForm({
@@ -18,24 +18,22 @@ export function UpdateProgressForm({
     levelName: string;
     progress: number;
 }) {
-    // Ключ подставляем заранее — форме о нём знать незачем,
-    // и в скрытом поле он не поедет, где его видно через инструменты
-    const действие = обновитьСвойПрогресс.bind(null, token);
+    const action = updateYourProgress.bind(null, token);
 
-    const [состояние, отправить, вПроцессе] = useActionState<СостояниеОбновления, FormData>(
-        действие,
+    const [status, send, inProgress] = useActionState<checkUpdate, FormData>(
+        action,
         undefined,
     );
 
     return (
-        <form action={отправить} className="space-y-5">
-            {состояние?.ошибка && (
+        <form action={send} className="space-y-5">
+            {status?.error && (
                 <p className="border-l-4 border-red-500 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-                    {состояние.ошибка}
+                    {status.error}
                 </p>
             )}
 
-            {состояние?.сохранено && (
+            {status?.saved && (
                 <p className="border-l-4 border-green-600 bg-green-50 px-4 py-3 text-sm font-bold text-green-700">
                     Сохранено — на сайте уже обновилось
                 </p>
@@ -50,7 +48,7 @@ export function UpdateProgressForm({
                     required
                     maxLength={150}
                     defaultValue={levelName}
-                    className={ПОЛЕ}
+                    className={FIELD}
                 />
             </label>
 
@@ -66,16 +64,16 @@ export function UpdateProgressForm({
                     max={100}
                     defaultValue={progress}
                     inputMode="numeric"
-                    className={`${ПОЛЕ} text-2xl font-bold`}
+                    className={`${FIELD} text-2xl font-bold`}
                 />
             </label>
 
             <button
                 type="submit"
-                disabled={вПроцессе}
+                disabled={inProgress}
                 className="w-full rounded bg-orange-600 px-6 py-4 text-lg font-bold text-white transition-colors hover:bg-orange-700 disabled:opacity-50"
             >
-                {вПроцессе ? 'Сохраняю…' : 'Обновить'}
+                {inProgress ? 'Сохраняю…' : 'Обновить'}
             </button>
         </form>
     );

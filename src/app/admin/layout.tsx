@@ -11,19 +11,10 @@ import {
 import { auth, signOut } from '@/src/auth';
 import { Button } from '@/src/components/ui/button';
 import { Toaster } from '@/src/components/ui/sonner';
-import { ждутРассмотрения } from '@/src/lib/submissions';
+import { waitCheck } from '@/src/lib/submissions';
 
-/**
- * Оболочка админки: боковое меню, шапка с почтой, выход.
- *
- * Лежит отдельным layout.tsx, поэтому применяется ко всем страницам
- * внутри /admin автоматически — писать меню на каждой не нужно.
- *
- * Страница входа тоже сюда попадает, но там сессии ещё нет,
- * поэтому меню просто не рисуется.
- */
 
-const РАЗДЕЛЫ = [
+const SECTIONS = [
     { href: '/admin', label: 'Обзор', icon: LayoutDashboard },
     { href: '/admin/submissions', label: 'Заявки', icon: Inbox },
     { href: '/admin/news', label: 'Новости', icon: Newspaper },
@@ -36,15 +27,12 @@ export default async function AdminLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const сессия = await auth();
+    const session = await auth();
 
-    if (!сессия?.user) {
-        // Не вошли — значит это страница входа, показываем её как есть
+    if (!session?.user) {
         return <>{children}</>;
     }
-
-    // Счётчик новых заявок — чтобы они не лежали незамеченными
-    const новыхЗаявок = await ждутРассмотрения();
+    const newMessage = await waitCheck();
 
     return (
         <div className="min-h-screen bg-muted/40">
@@ -55,22 +43,22 @@ export default async function AdminLayout({
                             H<span className="text-orange-600">&amp;</span>CR
                         </div>
                         <div className="truncate text-xs text-muted-foreground">
-                            {сессия.user.email}
+                            {session.user.email}
                         </div>
                     </div>
 
                     <nav className="space-y-1">
-                        {РАЗДЕЛЫ.map((р) => (
+                        {SECTIONS.map((p) => (
                             <Link
-                                key={р.href}
-                                href={р.href}
+                                key={p.href}
+                                href={p.href}
                                 className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                             >
-                                <р.icon className="size-4" />
-                                {р.label}
-                                {р.href === '/admin/submissions' && новыхЗаявок > 0 && (
+                                <p.icon className="size-4" />
+                                {p.label}
+                                {p.href === '/admin/submissions' && newMessage > 0 && (
                                     <span className="ml-auto rounded-full bg-orange-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                                        {новыхЗаявок}
+                                        {newMessage}
                                     </span>
                                 )}
                             </Link>
@@ -106,8 +94,6 @@ export default async function AdminLayout({
 
                 <main className="min-w-0 flex-1">{children}</main>
             </div>
-
-            {/* Всплывающие уведомления «сохранено», «удалено» */}
             <Toaster position="bottom-right" />
         </div>
     );

@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/src/components/ui/card';
 import { buttonVariants } from '@/src/components/ui/button';
 import { cn } from '@/src/lib/utils';
 import { NewsForm } from '@/src/components/admin/NewsForm';
-import { создатьНовость } from '../actions';
+import { createNews } from '../actions';
 
 export const metadata: Metadata = { title: 'Новая новость', robots: { index: false } };
 
@@ -27,7 +27,7 @@ export default function NewNewsPage() {
 
             <Card>
                 <CardContent>
-                    <NewsForm action={создатьНовость} />
+                    <NewsForm action={createNews} />
                 </CardContent>
             </Card>
         </div>

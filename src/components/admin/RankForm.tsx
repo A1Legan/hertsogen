@@ -3,19 +3,14 @@ import { Input } from '@/src/components/ui/input';
 import { Textarea } from '@/src/components/ui/textarea';
 import { Label } from '@/src/components/ui/label';
 import { Button, buttonVariants } from '@/src/components/ui/button';
-import { LevelPicker, type ВариантУровня } from './LevelPicker';
+import { LevelPicker, type LevelVariant } from '@/src/components/LevelPicker';
 
-/**
- * Форма уровня в собственном рейтинге — одна на добавление и на правку.
- *
- * Отличий два: при добавлении выбирается уровень, при правке он уже
- * определён и меняться не может (levelId — первичный ключ). И место
- * в списке спрашивается только при правке: новый уровень всегда
- * встаёт в конец, а дальше двигается кнопками.
- */
+const ADMIN_FIELD =
+    'h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring';
 
-export type ЗначенияРейтинга = {
-    уровень: ВариантУровня;
+
+export type RankValue = {
+    level: LevelVariant;
     position: number;
     requirement: number;
     note: string | null;
@@ -23,28 +18,23 @@ export type ЗначенияРейтинга = {
 
 export function RankForm({
     action,
-    уровни,
-    запись,
-    всего,
+    record,
+    all,
 }: {
     action: (form: FormData) => Promise<void>;
-    /** Все уровни Global Demonlist — для поиска по названию */
-    уровни: ВариантУровня[];
-    /** Заполнено при правке, пусто при добавлении */
-    запись?: ЗначенияРейтинга;
-    /** Сколько уровней в списке — чтобы подсказать границы места */
-    всего: number;
+    record?: RankValue;
+    all: number;
 }) {
     return (
         <form action={action} className="space-y-5">
-            {запись ? (
+            {record ? (
                 <div className="space-y-2">
                     <Label>Уровень</Label>
                     <div className="rounded-md border bg-muted/40 px-3 py-2.5">
-                        <div className="text-sm font-medium">{запись.уровень.name}</div>
+                        <div className="text-sm font-medium">{record.level.name}</div>
                         <div className="text-xs text-muted-foreground">
-                            {запись.уровень.builder} • в Global Demonlist #
-                            {запись.уровень.position} • id {запись.уровень.id}
+                            {record.level.builder} • в Global Demonlist #
+                            {record.level.position} • id {record.level.id}
                         </div>
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -53,11 +43,14 @@ export function RankForm({
                     </p>
                 </div>
             ) : (
-                <LevelPicker уровни={уровни} />
+                <div className="space-y-2">
+                    <Label htmlFor="поиск-уровня">Уровень</Label>
+                    <LevelPicker fieldClass={ADMIN_FIELD} />
+                </div>
             )}
 
             <div className="grid gap-5 sm:grid-cols-2">
-                {запись && (
+                {record && (
                     <div className="space-y-2">
                         <Label htmlFor="position">Место в нашем списке</Label>
                         <Input
@@ -65,12 +58,12 @@ export function RankForm({
                             name="position"
                             type="number"
                             min={1}
-                            max={всего}
-                            defaultValue={запись.position}
+                            max={all}
+                            defaultValue={record.position}
                             required
                         />
                         <p className="text-xs text-muted-foreground">
-                            От 1 до {всего}. Остальные сдвинутся сами.
+                            От 1 до {all}. Остальные сдвинутся сами.
                         </p>
                     </div>
                 )}
@@ -83,7 +76,7 @@ export function RankForm({
                         type="number"
                         min={1}
                         max={100}
-                        defaultValue={запись?.requirement ?? 100}
+                        defaultValue={record?.requirement ?? 100}
                         required
                     />
                     <p className="text-xs text-muted-foreground">
@@ -99,7 +92,7 @@ export function RankForm({
                     name="note"
                     rows={3}
                     maxLength={500}
-                    defaultValue={запись?.note ?? ''}
+                    defaultValue={record?.note ?? ''}
                     placeholder="Почему уровень стоит именно здесь"
                 />
                 <p className="text-xs text-muted-foreground">
